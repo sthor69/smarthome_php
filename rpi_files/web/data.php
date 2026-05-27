@@ -1,12 +1,10 @@
 <?php
 header('Content-Type: application/json');
 
-// Path to the SQLite database
 $dbPath = '/var/www/html/sensor_data.db';
 
-// Check if database exists
 if (!file_exists($dbPath)) {
-    echo json_encode(['error' => 'Database not found']);
+    echo json_encode(['error' => 'Database non trovato']);
     exit;
 }
 
@@ -14,12 +12,26 @@ try {
     $db = new PDO("sqlite:$dbPath");
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Get the last 100 measurements
-    $stmt = $db->query("SELECT timestamp, temperature, humidity FROM measurements ORDER BY timestamp DESC LIMIT 100");
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $hours = isset($_GET['hours']) ? intval($_GET['hours']) : 0;
 
-    // Return results in chronological order for the chart
-    echo json_encode(array_reverse($results));
+    if ($hours > 0) {
+        $stmt = $db->prepare("
+            SELECT timestamp, temperature, humidity
+            FROM measurements
+            WHERE timestamp >= datetime('now', '-' || :hours || ' hours')
+            ORDER BY timestamp ASC
+        ");
+        $stmt->execute([':hours' => $hours]);
+    } else {
+        $stmt = $db->query("
+            SELECT timestamp, temperature, humidity
+            FROM measurements
+            ORDER BY timestamp ASC
+        ");
+    }
+
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode($results);
 
 } catch (PDOException $e) {
     echo json_encode(['error' => $e->getMessage()]);
