@@ -76,6 +76,33 @@
             border-color: #4299e1;
         }
 
+        .custom-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+            align-items: center;
+            font-size: 0.85em;
+            color: #4a5568;
+        }
+        .custom-controls input {
+            padding: 4px 8px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            color: #4a5568;
+        }
+        .custom-controls button {
+            padding: 6px 16px;
+            border: 1px solid #cbd5e0;
+            border-radius: 20px;
+            background: #edf2f7;
+            color: #4a5568;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .custom-controls button:hover { background: #cbd5e0; }
+
         .chart-container {
             position: relative;
             height: 380px;
@@ -118,6 +145,14 @@
         <button onclick="setPeriod(0)"    id="btn0">Tutto</button>
     </div>
 
+    <div class="custom-controls">
+        <label for="startDate">Da:</label>
+        <input type="datetime-local" id="startDate">
+        <label for="endDate">A:</label>
+        <input type="datetime-local" id="endDate">
+        <button onclick="applyCustomRange()">Applica</button>
+    </div>
+
     <div class="chart-container">
         <canvas id="sensorChart"></canvas>
     </div>
@@ -134,11 +169,37 @@
     };
 
     function setPeriod(hours) {
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
         currentHours = hours;
         Object.entries(periodBtns).forEach(([h, id]) => {
             document.getElementById(id).classList.toggle('active', parseInt(h) === hours);
         });
         updateChart();
+    }
+
+    function applyCustomRange() {
+        const startVal = document.getElementById('startDate').value;
+        const endVal = document.getElementById('endDate').value;
+
+        if (!startVal || !endVal) {
+            alert('Inserisci sia la data di inizio che quella di fine.');
+            return;
+        }
+
+        const s = startVal.replace('T', ' ');
+        const e = endVal.replace('T', ' ');
+
+        // Calcola ore per formattazione label
+        const diffMs = new Date(endVal) - new Date(startVal);
+        currentHours = diffMs / (1000 * 60 * 60);
+
+        // Disattiva pulsanti preset
+        Object.values(periodBtns).forEach(id => {
+            document.getElementById(id).classList.remove('active');
+        });
+
+        updateChart(s, e);
     }
 
     function formatLabel(timestamp) {
@@ -152,10 +213,13 @@
         }
     }
 
-    function updateChart() {
-        const url = currentHours > 0
-            ? `data.php?hours=${currentHours}`
-            : `data.php`;
+    function updateChart(customStart, customEnd) {
+        let url = 'data.php';
+        if (customStart && customEnd) {
+            url += `?start=${encodeURIComponent(customStart)}&end=${encodeURIComponent(customEnd)}`;
+        } else if (currentHours > 0) {
+            url += `?hours=${currentHours}`;
+        }
 
         fetch(url)
             .then(r => r.json())

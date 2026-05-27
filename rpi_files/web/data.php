@@ -13,8 +13,18 @@ try {
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     $hours = isset($_GET['hours']) ? intval($_GET['hours']) : 0;
+    $start = $_GET['start'] ?? null;
+    $end   = $_GET['end']   ?? null;
 
-    if ($hours > 0) {
+    if ($start && $end) {
+        $stmt = $db->prepare("
+            SELECT timestamp, temperature, humidity
+            FROM measurements
+            WHERE timestamp BETWEEN :start AND :end
+            ORDER BY timestamp ASC
+        ");
+        $stmt->execute([':start' => $start, ':end' => $end]);
+    } elseif ($hours > 0) {
         $stmt = $db->prepare("
             SELECT timestamp, temperature, humidity
             FROM measurements
