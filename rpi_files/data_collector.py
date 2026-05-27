@@ -7,7 +7,7 @@ from bleak import BleakClient, BleakScanner
 from bleak.exc import BleakError
 
 # --- Configurazione ---
-DEVICE_NAME = "SensoreTH"
+DEVICE_NAME = "Adafruit Bluefruit LE"
 DEVICE_ADDRESS = None  # oppure "XX:XX:XX:XX:XX:XX" per forzare MAC
 UART_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 DB_PATH = "/var/www/html/sensor_data.db"
