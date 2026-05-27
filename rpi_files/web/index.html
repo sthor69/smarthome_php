@@ -268,22 +268,12 @@
         updateChart();
     }
 
-    function formatLabel(timestamp) {
-        const d = new Date(timestamp.replace(' ', 'T') + 'Z');
-        if (currentHours <= 6) {
-            return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-        } else if (currentHours <= 48) {
-            return d.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-        } else {
-            return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit' }) + 'h';
-        }
-    }
-
     function updateChart() {
         const startVal = document.getElementById('startDate').value;
         const endVal = document.getElementById('endDate').value;
 
         let url = 'data.php';
+        let queryHours = currentHours;
         if (startVal && endVal) {
             const startD = new Date(startVal);
             const endD = new Date(endVal);
@@ -296,7 +286,7 @@
                 String(d.getUTCMinutes()).padStart(2, '0') + ':00';
 
             url += `?start=${encodeURIComponent(toSqlUtc(startD))}&end=${encodeURIComponent(toSqlUtc(endD))}`;
-            currentHours = (endD - startD) / (1000 * 60 * 60);
+            queryHours = (endD - startD) / (1000 * 60 * 60);
         } else if (currentHours > 0) {
             url += `?hours=${currentHours}`;
         }
@@ -313,25 +303,37 @@
                     return;
                 }
 
-                const labels = data.map(r => formatLabel(r.timestamp));
-                const temps  = data.map(r => r.temperature);
-                const hums   = data.map(r => r.humidity);
+                const temps = [];
+                const hums  = [];
+                let lastTs  = null;
 
-                // Aggiorna card
-                document.getElementById('lastTemp').textContent = temps[temps.length - 1].toFixed(1);
-                document.getElementById('lastHum').textContent  = hums[hums.length - 1].toFixed(1);
+                data.forEach(r => {
+                    const ts = new Date(r.timestamp.replace(' ', 'T') + 'Z');
+                    // Se c'è un buco > 2 minuti (120000ms), inseriamo un null per spezzare la linea
+                    if (lastTs && (ts - lastTs) > 120000) {
+                        temps.push({ x: new Date(lastTs.getTime() + 10000), y: null });
+                        hums.push({ x: new Date(lastTs.getTime() + 10000), y: null });
+                    }
+                    temps.push({ x: ts, y: r.temperature });
+                    hums.push({ x: ts, y: r.humidity });
+                    lastTs = ts;
+                });
+
+                // Aggiorna card con l'ultimo valore reale (non null)
+                const lastData = data[data.length - 1];
+                document.getElementById('lastTemp').textContent = lastData.temperature.toFixed(1);
+                document.getElementById('lastHum').textContent  = lastData.humidity.toFixed(1);
 
                 if (sensorChart) {
-                    sensorChart.data.labels = labels;
                     sensorChart.data.datasets[0].data = temps;
                     sensorChart.data.datasets[1].data = hums;
+                    sensorChart.options.scales.x.time.unit = queryHours <= 1 ? 'minute' : (queryHours <= 24 ? 'hour' : 'day');
                     sensorChart.update();
                 } else {
                     const ctx = document.getElementById('sensorChart').getContext('2d');
                     sensorChart = new Chart(ctx, {
                         type: 'line',
                         data: {
-                            labels,
                             datasets: [
                                 {
                                     label: 'Temperatura (°C)',
@@ -372,6 +374,16 @@
                             },
                             scales: {
                                 x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: queryHours <= 1 ? 'minute' : (queryHours <= 24 ? 'hour' : 'day'),
+                                        displayFormats: {
+                                            minute: 'HH:mm',
+                                            hour: 'dd/MM HH:mm',
+                                            day: 'dd/MM'
+                                        },
+                                        tooltipFormat: 'dd/MM/yyyy HH:mm'
+                                    },
                                     ticks: {
                                         maxTicksLimit: 10,
                                         maxRotation: 30,
