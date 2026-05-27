@@ -126,6 +126,32 @@
             color: #a0aec0;
         }
         .status.error { color: #e53e3e; }
+
+        .export-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .export-controls button {
+            padding: 8px 20px;
+            border: 1px solid #2f855a;
+            border-radius: 20px;
+            background: #48bb78;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .export-controls button:hover {
+            background: #38a169;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -168,6 +194,11 @@
         <button class="nav-btn" onclick="adjustTime('endDate', 15)">+</button>
 
         <button onclick="applyCustomRange()">Applica</button>
+    </div>
+
+    <div class="export-controls">
+        <button onclick="exportData(false)">📊 Esporta Vista</button>
+        <button onclick="exportData(true)">📥 Esporta Tutto</button>
     </div>
 
     <div class="chart-container">
@@ -420,6 +451,28 @@
         const el = document.getElementById('status');
         el.textContent = msg;
         el.className = 'status' + (isError ? ' error' : '');
+    }
+
+    function exportData(all) {
+        let url = 'export.php';
+        if (!all) {
+            const startVal = document.getElementById('startDate').value;
+            const endVal = document.getElementById('endDate').value;
+
+            if (startVal && endVal) {
+                const startD = new Date(startVal);
+                const endD = new Date(endVal);
+                const toSqlUtc = (d) => d.getUTCFullYear() + '-' +
+                    String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                    String(d.getUTCDate()).padStart(2, '0') + ' ' +
+                    String(d.getUTCHours()).padStart(2, '0') + ':' +
+                    String(d.getUTCMinutes()).padStart(2, '0') + ':00';
+                url += `?start=${encodeURIComponent(toSqlUtc(startD))}&end=${encodeURIComponent(toSqlUtc(endD))}`;
+            } else if (currentHours > 0) {
+                url += `?hours=${currentHours}`;
+            }
+        }
+        window.location.href = url;
     }
 
     updateChart();
