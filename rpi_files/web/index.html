@@ -233,6 +233,14 @@
         }
     });
 
+    ['startDate', 'endDate'].forEach(id => {
+        document.getElementById(id).addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 15 : -15;
+            adjustTime(id, delta);
+        });
+    });
+
     function setPeriod(hours) {
         document.getElementById('startDate').value = '';
         document.getElementById('endDate').value = '';
