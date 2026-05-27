@@ -227,19 +227,12 @@
             return;
         }
 
-        const s = startVal.replace('T', ' ');
-        const e = endVal.replace('T', ' ');
-
-        // Calcola ore per formattazione label
-        const diffMs = new Date(endVal) - new Date(startVal);
-        currentHours = diffMs / (1000 * 60 * 60);
-
         // Disattiva pulsanti preset
         Object.values(periodBtns).forEach(id => {
             document.getElementById(id).classList.remove('active');
         });
 
-        updateChart(s, e);
+        updateChart();
     }
 
     function formatLabel(timestamp) {
@@ -253,10 +246,24 @@
         }
     }
 
-    function updateChart(customStart, customEnd) {
+    function updateChart() {
+        const startVal = document.getElementById('startDate').value;
+        const endVal = document.getElementById('endDate').value;
+
         let url = 'data.php';
-        if (customStart && customEnd) {
-            url += `?start=${encodeURIComponent(customStart)}&end=${encodeURIComponent(customEnd)}`;
+        if (startVal && endVal) {
+            const startD = new Date(startVal);
+            const endD = new Date(endVal);
+
+            // Convert to UTC for the database (YYYY-MM-DD HH:mm:ss)
+            const toSqlUtc = (d) => d.getUTCFullYear() + '-' +
+                String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getUTCDate()).padStart(2, '0') + ' ' +
+                String(d.getUTCHours()).padStart(2, '0') + ':' +
+                String(d.getUTCMinutes()).padStart(2, '0') + ':00';
+
+            url += `?start=${encodeURIComponent(toSqlUtc(startD))}&end=${encodeURIComponent(toSqlUtc(endD))}`;
+            currentHours = (endD - startD) / (1000 * 60 * 60);
         } else if (currentHours > 0) {
             url += `?hours=${currentHours}`;
         }
