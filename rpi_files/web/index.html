@@ -103,6 +103,13 @@
         }
         .custom-controls button:hover { background: #cbd5e0; }
 
+        .nav-btn {
+            padding: 4px 10px !important;
+            border-radius: 4px !important;
+            margin: 0 2px;
+            font-weight: bold;
+        }
+
         .chart-container {
             position: relative;
             height: 380px;
@@ -147,9 +154,15 @@
 
     <div class="custom-controls">
         <label for="startDate">Da:</label>
-        <input type="datetime-local" id="startDate">
+        <button class="nav-btn" onclick="adjustTime('startDate', -1)">-</button>
+        <input type="datetime-local" id="startDate" step="300">
+        <button class="nav-btn" onclick="adjustTime('startDate', 1)">+</button>
+
         <label for="endDate">A:</label>
-        <input type="datetime-local" id="endDate">
+        <button class="nav-btn" onclick="adjustTime('endDate', -1)">-</button>
+        <input type="datetime-local" id="endDate" step="300">
+        <button class="nav-btn" onclick="adjustTime('endDate', 1)">+</button>
+
         <button onclick="applyCustomRange()">Applica</button>
     </div>
 
@@ -167,6 +180,33 @@
         1: 'btn1', 6: 'btn6', 24: 'btn24',
         168: 'btn168', 720: 'btn720', 0: 'btn0'
     };
+
+    function adjustTime(id, deltaHours) {
+        const el = document.getElementById(id);
+        let val = el.value;
+        let d;
+
+        if (val) {
+            d = new Date(val);
+        } else {
+            d = new Date();
+            // Arrotonda ai 5 minuti
+            d.setMinutes(Math.round(d.getMinutes() / 5) * 5);
+            d.setSeconds(0);
+            d.setMilliseconds(0);
+        }
+
+        d.setHours(d.getHours() + deltaHours);
+
+        // Formatta come YYYY-MM-DDTHH:mm
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const h = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+
+        el.value = `${y}-${m}-${day}T${h}:${min}`;
+    }
 
     function setPeriod(hours) {
         document.getElementById('startDate').value = '';
