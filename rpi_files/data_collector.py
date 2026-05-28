@@ -12,6 +12,11 @@ DEVICE_ADDRESS = None  # oppure "XX:XX:XX:XX:XX:XX" per forzare MAC
 UART_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 DB_PATH = "/var/www/html/sensor_data.db"
 RECONNECT_DELAY = 10  # secondi tra un tentativo di riconnessione e il prossimo
+HUMIDITY_SPIKE_THRESHOLD = 0.2
+
+# --- Stato globale ---
+last_raw_hum = None
+last_stored_hum = None
 
 # --- Logging ---
 logging.basicConfig(
@@ -61,6 +66,7 @@ def store_data(temperature, humidity):
 
 # --- BLE ---
 def notification_handler(sender, data):
+    global last_raw_hum, last_stored_hum
     try:
         message = data.decode("utf-8").strip()
         log.debug(f"BLE raw: '{message}'")
@@ -69,7 +75,19 @@ def notification_handler(sender, data):
             temp = float(match.group(1))
             hum = float(match.group(2))
             log.info(f"Ricevuto: T={temp:.1f}C  H={hum:.1f}%")
-            store_data(temp, hum)
+
+            # --- Spike Filter per Umidità ---
+            stored_hum = hum
+            if last_raw_hum is not None and last_raw_hum > 0:
+                diff_percent = abs(hum - last_raw_hum) / last_raw_hum
+                if diff_percent > HUMIDITY_SPIKE_THRESHOLD:
+                    log.warning(f"Rilevato spike umidità: {hum:.1f}% (prec raw: {last_raw_hum:.1f}%). Uso valore precedente: {last_stored_hum:.1f}%")
+                    stored_hum = last_stored_hum
+
+            last_raw_hum = hum
+            last_stored_hum = stored_hum
+
+            store_data(temp, stored_hum)
         else:
             log.warning(f"Messaggio non riconosciuto: '{message}'")
     except Exception as e:
