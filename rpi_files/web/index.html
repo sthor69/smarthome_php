@@ -275,8 +275,8 @@
 
     <!-- Selettore periodo -->
     <div class="controls">
-        <button onclick="setPeriod(1)"    class="active" id="btn1">1 ora</button>
-        <button onclick="setPeriod(6)"    id="btn6">6 ore</button>
+        <button onclick="setPeriod(1)"    id="btn1">1 ora</button>
+        <button onclick="setPeriod(6)"    class="active" id="btn6">6 ore</button>
         <button onclick="setPeriod(24)"   id="btn24">24 ore</button>
         <button onclick="setPeriod(168)"  id="btn168">7 giorni</button>
         <button onclick="setPeriod(720)"  id="btn720">30 giorni</button>
@@ -334,7 +334,7 @@
 
 <script>
     let sensorChart;
-    let currentHours = 1;
+    let currentHours = 6;
     let config = {
         discardThreshold: 10,
         movingAverageWindow: 5
