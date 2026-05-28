@@ -576,7 +576,7 @@
                 document.getElementById('lastHum').textContent  = lastHumObj.y !== null ? lastHumObj.y.toFixed(1) : '--';
 
                 const showPoints = queryHours > 0 && queryHours <= 1;
-                const radius = showPoints ? 3 : 0;
+                const radius = 0;
                 const timeUnit = showPoints ? 'minute' : (queryHours > 0 && queryHours <= 24 ? 'hour' : 'day');
 
                 if (sensorChart) {
