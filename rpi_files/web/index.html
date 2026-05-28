@@ -210,6 +210,7 @@
 <script>
     let sensorChart;
     let currentHours = 1;
+    const movingAverageN = 5;
 
     const periodBtns = {
         1: 'btn1', 6: 'btn6', 24: 'btn24',
@@ -337,6 +338,8 @@
                 const temps = [];
                 const hums  = [];
                 let lastTs  = null;
+                let tempWindow = [];
+                let humWindow = [];
 
                 data.forEach(r => {
                     const ts = new Date(r.timestamp.replace(' ', 'T') + 'Z');
@@ -344,16 +347,28 @@
                     if (lastTs && (ts - lastTs) > 120000) {
                         temps.push({ x: new Date(lastTs.getTime() + 10000), y: null });
                         hums.push({ x: new Date(lastTs.getTime() + 10000), y: null });
+                        tempWindow = [];
+                        humWindow = [];
                     }
-                    temps.push({ x: ts, y: r.temperature });
-                    hums.push({ x: ts, y: r.humidity });
+
+                    tempWindow.push(r.temperature);
+                    humWindow.push(r.humidity);
+                    if (tempWindow.length > movingAverageN) tempWindow.shift();
+                    if (humWindow.length > movingAverageN) humWindow.shift();
+
+                    const avgTemp = tempWindow.reduce((a, b) => a + b, 0) / tempWindow.length;
+                    const avgHum = humWindow.reduce((a, b) => a + b, 0) / humWindow.length;
+
+                    temps.push({ x: ts, y: avgTemp });
+                    hums.push({ x: ts, y: avgHum });
                     lastTs = ts;
                 });
 
-                // Aggiorna card con l'ultimo valore reale (non null)
-                const lastData = data[data.length - 1];
-                document.getElementById('lastTemp').textContent = lastData.temperature.toFixed(1);
-                document.getElementById('lastHum').textContent  = lastData.humidity.toFixed(1);
+                // Aggiorna card con l'ultimo valore reale
+                const lastAvgTemp = temps[temps.length - 1].y;
+                const lastAvgHum = hums[hums.length - 1].y;
+                document.getElementById('lastTemp').textContent = lastAvgTemp.toFixed(1);
+                document.getElementById('lastHum').textContent  = lastAvgHum.toFixed(1);
 
                 if (sensorChart) {
                     sensorChart.data.datasets[0].data = temps;
