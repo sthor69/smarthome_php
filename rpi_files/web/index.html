@@ -29,11 +29,32 @@
             border-radius: 12px;
             box-shadow: 0 2px 16px rgba(0,0,0,0.1);
         }
+        .header-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            margin-bottom: 20px;
+        }
         h1 {
             color: #2d3748;
             text-align: center;
-            margin-top: 0;
+            margin: 0;
             font-size: 1.5em;
+        }
+        .config-btn {
+            position: absolute;
+            right: 0;
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #4a5568;
+            transition: transform 0.2s;
+        }
+        .config-btn:hover {
+            transform: rotate(45deg);
+            color: #2d3748;
         }
         .cards {
             display: flex;
@@ -152,11 +173,91 @@
             background: #38a169;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .close-modal {
+            cursor: pointer;
+            font-size: 1.5em;
+            color: #a0aec0;
+        }
+        .close-modal:hover { color: #4a5568; }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-size: 0.9em;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+        }
+        .modal-footer {
+            margin-top: 24px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .btn-save {
+            padding: 8px 24px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-save:hover { background: #3182ce; }
+        .btn-cancel {
+            padding: 8px 24px;
+            background: #edf2f7;
+            color: #4a5568;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .btn-cancel:hover { background: #cbd5e0; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🌡️ Temperatura &amp; Umidità</h1>
+    <div class="header-container">
+        <h1>🌡️ Temperatura &amp; Umidità</h1>
+        <button class="config-btn" onclick="openConfig()" title="Configurazione">⚙️</button>
+    </div>
 
     <!-- Card valori attuali -->
     <div class="cards">
@@ -207,10 +308,83 @@
     <div id="status" class="status">Caricamento...</div>
 </div>
 
+<!-- Modal Configurazione -->
+<div id="configModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>Configurazione Parametri</span>
+            <span class="close-modal" onclick="closeConfig()">&times;</span>
+        </div>
+        <div class="form-group">
+            <label for="discardThreshold">Soglia scarto errori (%)</label>
+            <input type="number" id="discardThreshold" min="0" max="100" step="1">
+            <small style="color: #718096; font-size: 0.8em;">Scarta valori che variano più di questo % rispetto al precedente.</small>
+        </div>
+        <div class="form-group">
+            <label for="movingAverageWindow">Finestra Media Mobile (n. valori)</label>
+            <input type="number" id="movingAverageWindow" min="1" max="50" step="1">
+            <small style="color: #718096; font-size: 0.8em;">Numero di campioni per il calcolo della media mobile.</small>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeConfig()">Annulla</button>
+            <button class="btn-save" onclick="saveSettings()">Salva</button>
+        </div>
+    </div>
+</div>
+
 <script>
     let sensorChart;
     let currentHours = 1;
-    const movingAverageN = 5;
+    let config = {
+        discardThreshold: 10,
+        movingAverageWindow: 5
+    };
+
+    function loadConfig() {
+        const saved = localStorage.getItem('sensorConfig');
+        if (saved) {
+            config = JSON.parse(saved);
+        }
+        document.getElementById('discardThreshold').value = config.discardThreshold;
+        document.getElementById('movingAverageWindow').value = config.movingAverageWindow;
+    }
+
+    function openConfig() {
+        document.getElementById('configModal').style.display = 'flex';
+    }
+
+    function closeConfig() {
+        document.getElementById('configModal').style.display = 'none';
+    }
+
+    function saveSettings() {
+        const threshold = parseInt(document.getElementById('discardThreshold').value);
+        const windowSize = parseInt(document.getElementById('movingAverageWindow').value);
+
+        if (isNaN(threshold) || threshold < 0 || threshold > 100) {
+            alert('Inserisci una soglia di scarto valida (0-100).');
+            return;
+        }
+        if (isNaN(windowSize) || windowSize < 1 || windowSize > 50) {
+            alert('Inserisci una finestra di media mobile valida (1-50).');
+            return;
+        }
+
+        config.discardThreshold = threshold;
+        config.movingAverageWindow = windowSize;
+        localStorage.setItem('sensorConfig', JSON.stringify(config));
+        closeConfig();
+        updateChart();
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('configModal');
+        if (event.target == modal) {
+            closeConfig();
+        }
+    }
+
+    loadConfig();
 
     const periodBtns = {
         1: 'btn1', 6: 'btn6', 24: 'btn24',
@@ -341,20 +515,53 @@
                 let tempWindow = [];
                 let humWindow = [];
 
+                let lastValidTemp = null;
+                let lastValidHum = null;
+
+                const filteredData = [];
                 data.forEach(r => {
+                    if (lastValidTemp !== null) {
+                        const diff = Math.abs(r.temperature - lastValidTemp);
+                        // Se il valore precedente è vicino a zero, usiamo un limite minimo di 0.5 per evitare il blocco a zero
+                        const reference = Math.max(Math.abs(lastValidTemp), 0.5);
+                        const limit = reference * (config.discardThreshold / 100);
+                        if (diff > limit && config.discardThreshold > 0) return;
+                    }
+                    if (lastValidHum !== null) {
+                        const diff = Math.abs(r.humidity - lastValidHum);
+                        const reference = Math.max(Math.abs(lastValidHum), 0.5);
+                        const limit = reference * (config.discardThreshold / 100);
+                        if (diff > limit && config.discardThreshold > 0) return;
+                    }
+                    lastValidTemp = r.temperature;
+                    lastValidHum = r.humidity;
+                    filteredData.push(r);
+                });
+
+                if (filteredData.length === 0) {
+                    setStatus('Nessun dato valido dopo il filtraggio.', false);
+                    return;
+                }
+
+                let tempWindow = [];
+                let humWindow = [];
+
+                filteredData.forEach(r => {
                     const ts = new Date(r.timestamp.replace(' ', 'T') + 'Z');
                     // Se c'è un buco > 2 minuti (120000ms), inseriamo un null per spezzare la linea
                     if (lastTs && (ts - lastTs) > 120000) {
                         temps.push({ x: new Date(lastTs.getTime() + 10000), y: null });
                         hums.push({ x: new Date(lastTs.getTime() + 10000), y: null });
+                        // Reset moving average window on gap
                         tempWindow = [];
                         humWindow = [];
                     }
 
                     tempWindow.push(r.temperature);
                     humWindow.push(r.humidity);
-                    if (tempWindow.length > movingAverageN) tempWindow.shift();
-                    if (humWindow.length > movingAverageN) humWindow.shift();
+
+                    if (tempWindow.length > config.movingAverageWindow) tempWindow.shift();
+                    if (humWindow.length > config.movingAverageWindow) humWindow.shift();
 
                     const avgTemp = tempWindow.reduce((a, b) => a + b, 0) / tempWindow.length;
                     const avgHum = humWindow.reduce((a, b) => a + b, 0) / humWindow.length;
@@ -364,11 +571,11 @@
                     lastTs = ts;
                 });
 
-                // Aggiorna card con l'ultimo valore reale
-                const lastAvgTemp = temps[temps.length - 1].y;
-                const lastAvgHum = hums[hums.length - 1].y;
-                document.getElementById('lastTemp').textContent = lastAvgTemp.toFixed(1);
-                document.getElementById('lastHum').textContent  = lastAvgHum.toFixed(1);
+                // Aggiorna card con l'ultimo valore (già mediato)
+                const lastTempObj = temps[temps.length - 1];
+                const lastHumObj = hums[hums.length - 1];
+                document.getElementById('lastTemp').textContent = lastTempObj.y !== null ? lastTempObj.y.toFixed(1) : '--';
+                document.getElementById('lastHum').textContent  = lastHumObj.y !== null ? lastHumObj.y.toFixed(1) : '--';
 
                 if (sensorChart) {
                     sensorChart.data.datasets[0].data = temps;
