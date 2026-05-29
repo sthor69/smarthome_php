@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Europe/Rome');
 $dbPath = '/var/www/html/sensor_data.db';
 
 if (!file_exists($dbPath)) {
@@ -48,12 +49,15 @@ try {
     fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
     // Header row
-    fputcsv($output, ['Data e Ora', 'Temperatura (°C)', 'Umidità (%)'], ';');
+    fputcsv($output, ['Data e Ora (Italian Time)', 'Temperatura (°C)', 'Umidità (%)'], ';');
+
+    $utcTz = new DateTimeZone('UTC');
+    $romeTz = new DateTimeZone('Europe/Rome');
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        // Convert UTC to local if needed? For now, we use the DB value as is, which is UTC.
-        // Usually, Excel users expect some standard format.
-        fputcsv($output, [$row['timestamp'], $row['temperature'], $row['humidity']], ';');
+        $dt = new DateTime($row['timestamp'], $utcTz);
+        $dt->setTimezone($romeTz);
+        fputcsv($output, [$dt->format('Y-m-d H:i:s'), $row['temperature'], $row['humidity']], ';');
     }
 
     fclose($output);

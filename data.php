@@ -1,5 +1,6 @@
 <?php
 header('Content-Type: application/json');
+date_default_timezone_set('Europe/Rome');
 
 $dbPath = '/var/www/html/sensor_data.db';
 
@@ -42,6 +43,16 @@ try {
     }
 
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $utcTz = new DateTimeZone('UTC');
+    $romeTz = new DateTimeZone('Europe/Rome');
+
+    foreach ($results as &$row) {
+        $dt = new DateTime($row['timestamp'], $utcTz);
+        $dt->setTimezone($romeTz);
+        $row['timestamp'] = $dt->format('Y-m-d H:i:s');
+    }
+
     echo json_encode($results);
 
 } catch (PDOException $e) {

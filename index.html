@@ -545,7 +545,8 @@
                 let humWindow = [];
 
                 filteredData.forEach(r => {
-                    const ts = new Date(r.timestamp.replace(' ', 'T') + 'Z');
+                    // Trattiamo il timestamp come ora locale (è già stato convertito dal backend)
+                    const ts = new Date(r.timestamp.replace(' ', 'T'));
                     // Se c'è un buco > 2 minuti (120000ms), inseriamo un null per spezzare la linea
                     if (lastTs && (ts - lastTs) > 120000) {
                         temps.push({ x: new Date(lastTs.getTime() + 10000), y: null });
@@ -667,7 +668,7 @@
                     });
                 }
 
-                const ts = new Date(data[data.length-1].timestamp.replace(' ','T')+'Z');
+                const ts = new Date(data[data.length-1].timestamp.replace(' ','T'));
                 setStatus(`Aggiornato: ${new Date().toLocaleTimeString('it-IT')} — ultimo dato: ${ts.toLocaleString('it-IT')}`);
             })
             .catch(e => setStatus('Errore fetch: ' + e, true));
