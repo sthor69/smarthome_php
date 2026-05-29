@@ -4,14 +4,14 @@ This project provides a complete solution to monitor temperature and humidity fr
 
 ## Components
 
-1.  **Arduino Sketch** (`feather_sketch/`): Firmware for the Feather board.
-2.  **Data Collector** (`rpi_files/data_collector.py`): Python script to receive BLE data and store it in SQLite.
-3.  **Web Dashboard** (`rpi_files/web/`): HTML/JS frontend and PHP backend to visualize the data.
+1.  **Arduino Sketch** (`feather_sketch.ino`): Firmware for the Feather board.
+2.  **Data Collector** (`data_collector.py`): Python script to receive BLE data and store it in SQLite.
+3.  **Web Dashboard** (`index.html`, `data.php`, `export.php`): HTML/JS frontend and PHP backend to visualize the data.
 
 ## Setup Instructions
 
 ### 1. Arduino Setup
-- Open `feather_sketch/feather_sketch.ino` in the Arduino IDE.
+- Open `feather_sketch.ino` in the Arduino IDE.
 - Install the following libraries:
     - `Adafruit BluefruitLE nRF51`
     - `Adafruit DHT Sensor Library`
@@ -30,7 +30,7 @@ pip3 install bleak
 #### Deploy Web Files
 Copy the web files to the Apache document root:
 ```bash
-sudo cp rpi_files/web/* /var/www/html/
+sudo cp index.html data.php export.php /var/www/html/
 ```
 
 #### Permissions (Critical)
@@ -51,7 +51,7 @@ sudo chmod 664 /var/www/html/sensor_data.db
 
 #### Run the Data Collector
 ```bash
-python3 rpi_files/data_collector.py
+python3 data_collector.py
 ```
 *Note: Ensure the `DB_PATH` in `data_collector.py` matches `/var/www/html/sensor_data.db`.*
 
