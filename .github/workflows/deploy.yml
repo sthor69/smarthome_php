@@ -14,6 +14,7 @@ jobs:
           host: ${{ secrets.RPI_HOST }}
           username: ${{ secrets.RPI_USER }}
           key: ${{ secrets.RPI_SSH_KEY }}
+          port: 2222
           script: |
             echo "Starting..." >> /home/sthor69/logging
             cd /home/sthor69/workspace/smarthome/
