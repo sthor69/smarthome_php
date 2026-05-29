@@ -69,12 +69,12 @@
             border-radius: 10px;
             text-align: center;
         }
-        .card.temp { background: #fff5f5; border: 1px solid #fed7d7; }
-        .card.hum  { background: #ebf8ff; border: 1px solid #bee3f8; }
+        .card.temp { background: #ebf8ff; border: 1px solid #bee3f8; }
+        .card.hum  { background: #fff5f5; border: 1px solid #fed7d7; }
         .card .label { font-size: 0.8em; color: #718096; margin-bottom: 4px; }
         .card .value { font-size: 2em; font-weight: bold; }
-        .card.temp .value { color: #e53e3e; }
-        .card.hum  .value { color: #3182ce; }
+        .card.temp .value { color: #3182ce; }
+        .card.hum  .value { color: #e53e3e; }
         .card .unit { font-size: 0.9em; color: #718096; }
 
         .controls {
@@ -596,8 +596,8 @@
                                 {
                                     label: 'Temperatura (°C)',
                                     data: temps,
-                                    borderColor: 'rgb(229, 62, 62)',
-                                    backgroundColor: 'rgba(229, 62, 62, 0.1)',
+                                    borderColor: 'rgb(49, 130, 206)',
+                                    backgroundColor: 'rgba(49, 130, 206, 0.1)',
                                     borderWidth: 2,
                                     pointRadius: radius,
                                     tension: 0.3,
@@ -606,8 +606,8 @@
                                 {
                                     label: 'Umidità (%)',
                                     data: hums,
-                                    borderColor: 'rgb(49, 130, 206)',
-                                    backgroundColor: 'rgba(49, 130, 206, 0.1)',
+                                    borderColor: 'rgb(229, 62, 62)',
+                                    backgroundColor: 'rgba(229, 62, 62, 0.1)',
                                     borderWidth: 2,
                                     pointRadius: radius,
                                     tension: 0.3,
@@ -651,16 +651,16 @@
                                 yTemp: {
                                     type: 'linear',
                                     position: 'left',
-                                    title: { display: true, text: 'Temperatura (°C)', color: 'rgb(229,62,62)' },
-                                    ticks: { color: 'rgb(229,62,62)' },
-                                    grid: { color: 'rgba(229,62,62,0.1)' }
+                                    title: { display: true, text: 'Temperatura (°C)', color: 'rgb(49,130,206)' },
+                                    ticks: { color: 'rgb(49,130,206)' },
+                                    grid: { color: 'rgba(49,130,206,0.1)' }
                                 },
                                 yHum: {
                                     type: 'linear',
                                     position: 'right',
                                     min: 0, max: 100,
-                                    title: { display: true, text: 'Umidità (%)', color: 'rgb(49,130,206)' },
-                                    ticks: { color: 'rgb(49,130,206)' },
+                                    title: { display: true, text: 'Umidità (%)', color: 'rgb(229,62,62)' },
+                                    ticks: { color: 'rgb(229,62,62)' },
                                     grid: { drawOnChartArea: false }
                                 }
                             }
