@@ -3,10 +3,12 @@ header('Content-Type: application/json');
 
 $dbPath = '/var/www/html/sensor_data.db';
 
+
 if (!file_exists($dbPath)) {
     echo json_encode(['error' => 'Database non trovato']);
     exit;
 }
+
 
 try {
     $db = new PDO("sqlite:$dbPath");
