@@ -158,6 +158,9 @@ async def connect_and_listen(device):
         log.warning("Connessione caduta.")
 
 async def run():
+    # Aspetta che bluetoothd sia pronto
+    await asyncio.sleep(5)
+    
     """Loop principale con riconnessione automatica."""
     while True:
         try:
@@ -173,6 +176,10 @@ async def run():
             await connect_and_listen(device)
 
         except BleakError as e:
+            if "InProgress" in str(e):
+                log.warning("Bluetooth non ancora pronto, attendo...")
+                await asyncio.sleep(15)
+                continue
             log.error(f"Errore BLE: {e}")
             # Se la connessione fallisce e stavamo usando la cache, proviamo a pulirla
             if not DEVICE_ADDRESS:
