@@ -515,25 +515,53 @@
 
                 let lastValidTemp = null;
                 let lastValidHum = null;
+                let lastRawTemp = null;
+                let lastRawHum = null;
 
                 const filteredData = [];
                 data.forEach(r => {
-                    if (lastValidTemp !== null) {
-                        const diff = Math.abs(r.temperature - lastValidTemp);
-                        // Se il valore precedente è vicino a zero, usiamo un limite minimo di 0.5 per evitare il blocco a zero
-                        const reference = Math.max(Math.abs(lastValidTemp), 0.5);
-                        const limit = reference * (config.discardThreshold / 100);
-                        if (diff > limit && config.discardThreshold > 0) return;
+                    let acceptTemp = true;
+                    let acceptHum = true;
+
+                    if (lastValidTemp !== null && config.discardThreshold > 0) {
+                        const diffV = Math.abs(r.temperature - lastValidTemp);
+                        const limitV = Math.max(Math.abs(lastValidTemp), 0.5) * (config.discardThreshold / 100);
+
+                        // Se è lontano dall'ultimo valido, controlliamo se è vicino all'ultimo RAW (recupero da salto)
+                        if (diffV > limitV) {
+                            if (lastRawTemp !== null) {
+                                const diffR = Math.abs(r.temperature - lastRawTemp);
+                                const limitR = Math.max(Math.abs(lastRawTemp), 0.5) * (config.discardThreshold / 100);
+                                if (diffR > limitR) acceptTemp = false;
+                            } else {
+                                acceptTemp = false;
+                            }
+                        }
                     }
-                    if (lastValidHum !== null) {
-                        const diff = Math.abs(r.humidity - lastValidHum);
-                        const reference = Math.max(Math.abs(lastValidHum), 0.5);
-                        const limit = reference * (config.discardThreshold / 100);
-                        if (diff > limit && config.discardThreshold > 0) return;
+
+                    if (lastValidHum !== null && config.discardThreshold > 0) {
+                        const diffV = Math.abs(r.humidity - lastValidHum);
+                        const limitV = Math.max(Math.abs(lastValidHum), 0.5) * (config.discardThreshold / 100);
+
+                        if (diffV > limitV) {
+                            if (lastRawHum !== null) {
+                                const diffR = Math.abs(r.humidity - lastRawHum);
+                                const limitR = Math.max(Math.abs(lastRawHum), 0.5) * (config.discardThreshold / 100);
+                                if (diffR > limitR) acceptHum = false;
+                            } else {
+                                acceptHum = false;
+                            }
+                        }
                     }
-                    lastValidTemp = r.temperature;
-                    lastValidHum = r.humidity;
-                    filteredData.push(r);
+
+                    if (acceptTemp && acceptHum) {
+                        lastValidTemp = r.temperature;
+                        lastValidHum = r.humidity;
+                        filteredData.push(r);
+                    }
+
+                    lastRawTemp = r.temperature;
+                    lastRawHum = r.humidity;
                 });
 
                 if (filteredData.length === 0) {
