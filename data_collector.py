@@ -160,6 +160,19 @@ async def connect_and_listen(device):
 async def run():
     # Aspetta che bluetoothd sia pronto
     await asyncio.sleep(5)
+
+    while True:
+        try:
+            # Verifica che l'adapter esista
+            from bleak import BleakScanner
+            adapter_ok = await BleakScanner.discover(timeout=3)
+            break
+        except Exception as e:
+            if "No Bluetooth adapters" in str(e):
+                log.warning("Adapter BLE non ancora pronto, attendo...")
+                await asyncio.sleep(10)
+                continue
+            break
     
     """Loop principale con riconnessione automatica."""
     while True:
