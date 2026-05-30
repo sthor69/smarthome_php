@@ -48,7 +48,7 @@ def init_db():
 
 def store_data(temperature, humidity):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)  # aspetta fino a 10s
         cursor = conn.cursor()
         cursor.execute(
             'INSERT INTO measurements (temperature, humidity) VALUES (?, ?)',
