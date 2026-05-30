@@ -11,7 +11,9 @@ if (!file_exists($dbPath)) {
 }
 
 try {
-    $db = new PDO("sqlite:$dbPath");
+    $db = new PDO("sqlite:$dbPath", null, null, [
+                  PDO::SQLITE_ATTR_OPEN_FLAGS => PDO::SQLITE_OPEN_READONLY
+                  ]);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     $hours = isset($_GET['hours']) ? intval($_GET['hours']) : 0;
