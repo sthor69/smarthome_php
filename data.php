@@ -1,4 +1,11 @@
 <?php
+session_start();
+if (!isset($_SESSION['username'])) {
+    header('HTTP/1.1 401 Unauthorized');
+    echo json_encode(['error' => 'Non autorizzato']);
+    exit;
+}
+
 header('Content-Type: application/json');
 date_default_timezone_set('Europe/Rome');
 

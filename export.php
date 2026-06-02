@@ -1,4 +1,11 @@
 <?php
+session_start();
+if (!isset($_SESSION['username'])) {
+    header('HTTP/1.1 401 Unauthorized');
+    echo "Errore: Non autorizzato";
+    exit;
+}
+
 date_default_timezone_set('Europe/Rome');
 $dbPath = '/var/www/html/sensor_data.db';
 

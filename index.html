@@ -42,15 +42,21 @@
             margin: 0;
             font-size: 1.5em;
         }
-        .config-btn {
+        .header-actions {
             position: absolute;
             right: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .config-btn {
             background: none;
             border: none;
             font-size: 1.5em;
             cursor: pointer;
             color: #4a5568;
             transition: transform 0.2s;
+            padding: 0;
         }
         .config-btn:hover {
             transform: rotate(45deg);
@@ -256,7 +262,10 @@
 <div class="container">
     <div class="header-container">
         <h1>🌡️ Temperatura &amp; Umidità</h1>
-        <button class="config-btn" onclick="openConfig()" title="Configurazione">⚙️</button>
+        <div class="header-actions">
+            <button class="config-btn" onclick="openConfig()" title="Configurazione">⚙️</button>
+            <button onclick="logout()" style="background:none; border:1px solid #cbd5e0; border-radius:4px; padding:4px 8px; cursor:pointer; color:#4a5568; font-size:0.8em;">Logout</button>
+        </div>
     </div>
 
     <!-- Card valori attuali -->
@@ -333,6 +342,21 @@
 </div>
 
 <script>
+    // Verifica autenticazione
+    fetch('auth.php?action=status')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.logged_in) {
+                window.location.href = 'login.html';
+            }
+        })
+        .catch(() => { window.location.href = 'login.html'; });
+
+    function logout() {
+        fetch('auth.php?action=logout')
+            .then(() => { window.location.href = 'login.html'; });
+    }
+
     let sensorChart;
     let currentHours = 6;
     let config = {
