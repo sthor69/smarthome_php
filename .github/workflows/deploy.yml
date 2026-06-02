@@ -19,5 +19,5 @@ jobs:
             echo "Starting..." >> /home/sthor69/logging
             cd /home/sthor69/workspace/smarthome_php/
             git pull origin main
-            sudo cp * /var/www/smarthome/
+            sudo cp -r * /var/www/smarthome/
             
