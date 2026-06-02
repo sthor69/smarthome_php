@@ -35,10 +35,10 @@ try {
         $stmt = $db->prepare("
             SELECT timestamp, temperature, humidity
             FROM measurements
-            WHERE timestamp >= datetime('now', '-' || :hours || ' hours')
+            WHERE timestamp >= datetime('now', :interval)
             ORDER BY timestamp ASC
         ");
-        $stmt->execute([':hours' => $hours]);
+        $stmt->execute([':interval' => "-$hours hours"]);
     } else {
         $stmt = $db->query("
             SELECT timestamp, temperature, humidity
@@ -69,8 +69,8 @@ try {
 
     fclose($output);
 
-} catch (PDOException $e) {
-    header('HTTP/1.1 500 Internal Server Error');
-    echo "Errore DB: " . $e->getMessage();
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo "Errore: " . $e->getMessage();
 }
 ?>

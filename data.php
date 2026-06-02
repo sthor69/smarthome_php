@@ -39,10 +39,10 @@ try {
         $stmt = $db->prepare("
             SELECT timestamp, temperature, humidity
             FROM measurements
-            WHERE timestamp >= datetime('now', '-' || :hours || ' hours')
+            WHERE timestamp >= datetime('now', :interval)
             ORDER BY timestamp ASC
         ");
-        $stmt->execute([':hours' => $hours]);
+        $stmt->execute([':interval' => "-$hours hours"]);
     } else {
         $stmt = $db->query("
             SELECT timestamp, temperature, humidity
@@ -64,7 +64,8 @@ try {
 
     echo json_encode($results);
 
-} catch (PDOException $e) {
+} catch (Throwable $e) {
+    http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
 }
 ?>
