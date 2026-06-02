@@ -56,10 +56,13 @@ switch ($action) {
         $hash = password_hash($pass, PASSWORD_DEFAULT);
         $token = bin2hex(random_bytes(16));
         try {
+            $db->beginTransaction();
+
             // Check if email already exists
             $stmt = $db->prepare("SELECT id FROM users WHERE email = ?");
             $stmt->execute([$email]);
             if ($stmt->fetch()) {
+                $db->rollBack();
                 write_log('WARNING', "Registration failed: email '$email' already exists");
                 echo json_encode(['success' => false, 'error' => 'Email già registrata']);
                 break;
@@ -77,13 +80,18 @@ switch ($action) {
             $headers = "From: noreply@$host";
 
             if (!mail($email, $subject, $message, $headers)) {
-                write_log('ERROR', "Account created for '$user', but failed to send confirmation email to '$email'");
-                echo json_encode(['success' => true, 'note' => 'Account creato, ma c\'è stato un errore nell\'invio dell\'email. Contatta l\'amministratore.']);
+                $db->rollBack();
+                write_log('ERROR', "Registration failed for '$user': failed to send confirmation email to '$email'");
+                echo json_encode(['success' => false, 'error' => 'Errore nell\'invio dell\'email di conferma. Riprova più tardi.']);
             } else {
+                $db->commit();
                 write_log('INFO', "User registered successfully: '$user' ($email)");
                 echo json_encode(['success' => true]);
             }
         } catch (PDOException $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             if ($e->getCode() == '23000') {
                 write_log('WARNING', "Registration failed: username '$user' already exists");
                 echo json_encode(['success' => false, 'error' => 'Username già esistente']);
