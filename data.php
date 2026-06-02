@@ -36,13 +36,14 @@ try {
         ");
         $stmt->execute([':start' => $start, ':end' => $end]);
     } elseif ($hours > 0) {
+        $threshold = gmdate('Y-m-d H:i:s', time() - ($hours * 3600));
         $stmt = $db->prepare("
             SELECT timestamp, temperature, humidity
             FROM measurements
-            WHERE timestamp >= datetime('now', :interval)
+            WHERE timestamp >= :threshold
             ORDER BY timestamp ASC
         ");
-        $stmt->execute([':interval' => "-$hours hours"]);
+        $stmt->execute([':threshold' => $threshold]);
     } else {
         $stmt = $db->query("
             SELECT timestamp, temperature, humidity
