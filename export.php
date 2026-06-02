@@ -1,4 +1,5 @@
 <?php
+require_once 'logger.php';
 session_start();
 if (!isset($_SESSION['username'])) {
     header('HTTP/1.1 401 Unauthorized');
@@ -10,6 +11,7 @@ date_default_timezone_set('Europe/Rome');
 $dbPath = '/var/www/smarthome/sensor_data.db';
 
 if (!file_exists($dbPath)) {
+    write_log('ERROR', "Database not found at $dbPath");
     header('HTTP/1.1 500 Internal Server Error');
     echo "Errore: Database non trovato";
     exit;
@@ -24,6 +26,7 @@ try {
     $end   = $_GET['end']   ?? null;
 
     if ($start && $end) {
+        write_log('INFO', "Exporting data between $start and $end for user '{$_SESSION['username']}'");
         $stmt = $db->prepare("
             SELECT timestamp, temperature, humidity
             FROM measurements
@@ -32,6 +35,7 @@ try {
         ");
         $stmt->execute([':start' => $start, ':end' => $end]);
     } elseif ($hours > 0) {
+        write_log('INFO', "Exporting data for last $hours hours for user '{$_SESSION['username']}'");
         $threshold = gmdate('Y-m-d H:i:s', time() - ($hours * 3600));
         $stmt = $db->prepare("
             SELECT timestamp, temperature, humidity
@@ -41,6 +45,7 @@ try {
         ");
         $stmt->execute([':threshold' => $threshold]);
     } else {
+        write_log('INFO', "Exporting all data for user '{$_SESSION['username']}'");
         $stmt = $db->query("
             SELECT timestamp, temperature, humidity
             FROM measurements
@@ -71,6 +76,7 @@ try {
     fclose($output);
 
 } catch (Throwable $e) {
+    write_log('ERROR', "Data export error for user '{$_SESSION['username']}': " . $e->getMessage());
     http_response_code(500);
     echo "Errore: " . $e->getMessage();
 }
