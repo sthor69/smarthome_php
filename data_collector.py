@@ -12,7 +12,7 @@ from bleak.exc import BleakError
 DEVICE_NAME = "Adafruit Bluefruit LE"
 DEVICE_ADDRESS = None  # oppure "XX:XX:XX:XX:XX:XX" per forzare MAC
 UART_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
-DB_PATH = "/var/www/smarthome/sensor_data.db"
+DB_PATH = "/var/www/html/sensor_data.db"
 RECONNECT_DELAY = 10  # secondi tra un tentativo di riconnessione e il prossimo
 ADDRESS_CACHE_FILE = os.path.join(os.path.dirname(__file__), ".last_ble_address")
 
