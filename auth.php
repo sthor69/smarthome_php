@@ -2,7 +2,7 @@
 session_start();
 header('Content-Type: application/json');
 
-$dbPath = '/var/www/html/sensor_data.db';
+$dbPath = '/var/www/smarthome/sensor_data.db';
 
 function getDb() {
     global $dbPath;
