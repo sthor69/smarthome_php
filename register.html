@@ -94,6 +94,10 @@
                 <input type="text" id="username" required>
             </div>
             <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
                 <label for="password">Password</label>
                 <input type="password" id="password" required>
             </div>
@@ -108,6 +112,7 @@
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const user = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
             const errorEl = document.getElementById('errorMessage');
             const successEl = document.getElementById('successMessage');
@@ -118,16 +123,15 @@
             fetch('auth.php?action=register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: user, password: pass })
+                body: JSON.stringify({ username: user, email: email, password: pass })
             })
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    successEl.textContent = 'Registrazione completata! Verrai reindirizzato al login...';
+                    let msg = 'Registrazione completata! Controlla la tua email per confermare l\'account.';
+                    if (data.note) msg = data.note;
+                    successEl.textContent = msg;
                     successEl.style.display = 'block';
-                    setTimeout(() => {
-                        window.location.href = 'login.html';
-                    }, 2000);
                 } else {
                     errorEl.textContent = data.error || 'Errore di registrazione';
                     errorEl.style.display = 'block';

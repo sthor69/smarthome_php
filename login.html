@@ -64,6 +64,13 @@
             text-align: center;
             display: none;
         }
+        .success {
+            color: #2f855a;
+            font-size: 0.85em;
+            margin-bottom: 16px;
+            text-align: center;
+            display: none;
+        }
         .footer {
             margin-top: 20px;
             text-align: center;
@@ -80,6 +87,7 @@
     <div class="login-card">
         <h2>Accedi</h2>
         <div id="errorMessage" class="error"></div>
+        <div id="successMessage" class="success"></div>
         <form id="loginForm">
             <div class="form-group">
                 <label for="username">Username</label>
@@ -97,6 +105,14 @@
     </div>
 
     <script>
+        // Check for confirmation message
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('confirmed') === '1') {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = 'Account confermato con successo! Ora puoi accedere.';
+            successEl.style.display = 'block';
+        }
+
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const user = document.getElementById('username').value;
