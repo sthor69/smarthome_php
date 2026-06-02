@@ -1,4 +1,5 @@
 <?php
+require_once 'logger.php';
 session_start();
 header('Content-Type: application/json');
 
@@ -30,6 +31,7 @@ function getDb() {
 
         return $db;
     } catch (PDOException $e) {
+        write_log('ERROR', "Database error: " . $e->getMessage());
         echo json_encode(['success' => false, 'error' => 'Errore database: ' . $e->getMessage()]);
         exit;
     }
@@ -45,6 +47,7 @@ switch ($action) {
         $email = trim($data['email'] ?? '');
 
         if (empty($user) || empty($pass) || empty($email)) {
+            write_log('WARNING', "Registration failed: missing fields for user '$user'");
             echo json_encode(['success' => false, 'error' => 'Username, password ed email richiesti']);
             break;
         }
@@ -57,6 +60,7 @@ switch ($action) {
             $stmt = $db->prepare("SELECT id FROM users WHERE email = ?");
             $stmt->execute([$email]);
             if ($stmt->fetch()) {
+                write_log('WARNING', "Registration failed: email '$email' already exists");
                 echo json_encode(['success' => false, 'error' => 'Email già registrata']);
                 break;
             }
@@ -73,16 +77,18 @@ switch ($action) {
             $headers = "From: noreply@$host";
 
             if (!mail($email, $subject, $message, $headers)) {
-                // If mail fails, we might want to inform the user but the account is created
-                // In some cases we might want to delete the user, but for now let's just add a note
+                write_log('ERROR', "Account created for '$user', but failed to send confirmation email to '$email'");
                 echo json_encode(['success' => true, 'note' => 'Account creato, ma c\'è stato un errore nell\'invio dell\'email. Contatta l\'amministratore.']);
             } else {
+                write_log('INFO', "User registered successfully: '$user' ($email)");
                 echo json_encode(['success' => true]);
             }
         } catch (PDOException $e) {
             if ($e->getCode() == '23000') {
+                write_log('WARNING', "Registration failed: username '$user' already exists");
                 echo json_encode(['success' => false, 'error' => 'Username già esistente']);
             } else {
+                write_log('ERROR', "Registration error for '$user': " . $e->getMessage());
                 echo json_encode(['success' => false, 'error' => $e->getMessage()]);
             }
         }
@@ -91,6 +97,7 @@ switch ($action) {
     case 'confirm':
         $token = $_GET['token'] ?? '';
         if (empty($token)) {
+            write_log('WARNING', "Account confirmation failed: empty token");
             echo "Token non valido";
             break;
         }
@@ -101,12 +108,15 @@ switch ($action) {
             $stmt->execute([$token]);
 
             if ($stmt->rowCount() > 0) {
+                write_log('INFO', "Account confirmed successfully with token '$token'");
                 header('Location: login.html?confirmed=1');
                 exit;
             } else {
+                write_log('WARNING', "Account confirmation failed: invalid or used token '$token'");
                 echo "Token non valido o già utilizzato";
             }
         } catch (PDOException $e) {
+            write_log('ERROR', "Account confirmation error: " . $e->getMessage());
             echo "Errore: " . $e->getMessage();
         }
         break;
@@ -124,22 +134,28 @@ switch ($action) {
 
             if ($row && password_verify($pass, $row['password_hash'])) {
                 if (!$row['is_confirmed']) {
+                    write_log('WARNING', "Login attempt for unconfirmed account: '$user'");
                     echo json_encode(['success' => false, 'error' => 'Account non confermato. Controlla la tua email.']);
                     break;
                 }
                 session_regenerate_id(true);
                 $_SESSION['username'] = $user;
+                write_log('INFO', "User logged in: '$user'");
                 echo json_encode(['success' => true]);
             } else {
+                write_log('WARNING', "Invalid login attempt for user: '$user'");
                 echo json_encode(['success' => false, 'error' => 'Credenziali non valide']);
             }
         } catch (PDOException $e) {
+            write_log('ERROR', "Login error for '$user': " . $e->getMessage());
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
         break;
 
     case 'logout':
+        $user = $_SESSION['username'] ?? 'unknown';
         session_destroy();
+        write_log('INFO', "User logged out: '$user'");
         echo json_encode(['success' => true]);
         break;
 

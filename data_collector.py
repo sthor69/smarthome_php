@@ -17,12 +17,24 @@ RECONNECT_DELAY = 10  # secondi tra un tentativo di riconnessione e il prossimo
 ADDRESS_CACHE_FILE = os.path.join(os.path.dirname(__file__), ".last_ble_address")
 
 # --- Logging ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+LOG_FILE = os.path.join(os.path.dirname(__file__), "logs", "website..log")
+os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+
+log_formatter = logging.Formatter(
+    "%(asctime)s [%(levelname)s] [data_collector.py] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
+
+file_handler = logging.FileHandler(LOG_FILE)
+file_handler.setFormatter(log_formatter)
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+log.addHandler(file_handler)
+log.addHandler(console_handler)
 
 # --- Database ---
 def init_db():
