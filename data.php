@@ -9,7 +9,7 @@ if (!isset($_SESSION['username'])) {
 header('Content-Type: application/json');
 date_default_timezone_set('Europe/Rome');
 
-$dbPath = '/var/www/html/sensor_data.db';
+$dbPath = '/var/www/smarthome/sensor_data.db';
 
 
 if (!file_exists($dbPath)) {

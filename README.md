@@ -30,22 +30,22 @@ pip3 install bleak
 #### Deploy Web Files
 Copy the web files to the Apache document root:
 ```bash
-sudo cp index.html data.php export.php /var/www/html/
+sudo cp index.html data.php export.php /var/www/smarthome/
 ```
 
 #### Permissions (Critical)
 The data collector and Apache both need access to the database file.
 ```bash
 # Create the database file if it doesn't exist
-sudo touch /var/www/html/sensor_data.db
+sudo touch /var/www/smarthome/sensor_data.db
 # Set ownership to www-data (Apache user)
-sudo chown www-data:www-data /var/www/html/sensor_data.db
+sudo chown www-data:www-data /var/www/smarthome/sensor_data.db
 # Ensure the directory is also writable if you want the script to be able to create the DB
-sudo chown www-data:www-data /var/www/html/
+sudo chown www-data:www-data /var/www/smarthome/
 # Add your user to the www-data group to run the collector script
 sudo usermod -a -G www-data $USER
 # Change permissions so group can write
-sudo chmod 664 /var/www/html/sensor_data.db
+sudo chmod 664 /var/www/smarthome/sensor_data.db
 ```
 *Note: You may need to logout and log back in for group changes to take effect.*
 
@@ -53,7 +53,7 @@ sudo chmod 664 /var/www/html/sensor_data.db
 ```bash
 python3 data_collector.py
 ```
-*Note: Ensure the `DB_PATH` in `data_collector.py` matches `/var/www/html/sensor_data.db`.*
+*Note: Ensure the `DB_PATH` in `data_collector.py` matches `/var/www/smarthome/sensor_data.db`.*
 
 ### 3. View the Dashboard
-Navigate to `http://<your-raspberry-pi-ip>/index.html` in your web browser.
+Navigate to `http://<your-raspberry-pi-ip>/smarthome/index.html` in your web browser.
