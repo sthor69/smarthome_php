@@ -29,6 +29,17 @@ function getDb() {
             $db->exec("UPDATE users SET is_confirmed = 1");
         }
 
+        // Migration: one-time account erasure for Issue #52
+        $markerFile = dirname($dbPath) . '/logs/.users_erased_v52';
+        if (!file_exists($markerFile)) {
+            $db->exec("DELETE FROM users WHERE username != 'sthor69'");
+            if (!is_dir(dirname($markerFile))) {
+                mkdir(dirname($markerFile), 0775, true);
+            }
+            touch($markerFile);
+            write_log('INFO', "One-time account erasure migration executed. Only 'sthor69' (if present) was preserved.");
+        }
+
         return $db;
     } catch (PDOException $e) {
         write_log('ERROR', "Database error: " . $e->getMessage());
