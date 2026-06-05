@@ -342,9 +342,9 @@
             </label>
         </div>
         <div class="form-group" id="polyDegreeGroup">
-            <label for="polyDegree">Grado Polinomio (1-20)</label>
+            <label for="polyDegree">Grado Polinomio</label>
             <input type="number" id="polyDegree" min="1" max="20" step="1">
-            <small style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
+            <small id="polyDegreeHelp" style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
         </div>
         <div class="modal-footer">
             <button class="btn-cancel" onclick="closeConfig()">Annulla</button>
@@ -378,6 +378,22 @@
         polyDegree: 3
     };
 
+    function getCurrentRangeHours() {
+        const startVal = document.getElementById('startDate').value;
+        const endVal = document.getElementById('endDate').value;
+        if (startVal && endVal) {
+            const startD = new Date(startVal);
+            const endD = new Date(endVal);
+            return (endD - startD) / (1000 * 60 * 60);
+        }
+        return currentHours;
+    }
+
+    function getMaxPolyDegree(hours) {
+        if (hours > 0 && hours <= 1) return 9;
+        return 20;
+    }
+
     function loadConfig() {
         const saved = localStorage.getItem('sensorConfig');
         if (saved) {
@@ -398,6 +414,14 @@
     document.getElementById('enableInterpolation')?.addEventListener('change', togglePolyDegreeVisibility);
 
     function openConfig() {
+        const rangeHours = getCurrentRangeHours();
+        const maxDegree = getMaxPolyDegree(rangeHours);
+        const polyInput = document.getElementById('polyDegree');
+        const polyHelp = document.getElementById('polyDegreeHelp');
+
+        polyInput.max = maxDegree;
+        polyHelp.textContent = `Grado della curva di regressione polinomiale (max ${maxDegree} per l'intervallo attuale).`;
+
         document.getElementById('configModal').style.display = 'flex';
     }
 
@@ -411,6 +435,9 @@
         const polyDeg = parseInt(document.getElementById('polyDegree').value);
         const enabled = document.getElementById('enableInterpolation').checked;
 
+        const rangeHours = getCurrentRangeHours();
+        const maxDegree = getMaxPolyDegree(rangeHours);
+
         if (isNaN(threshold) || threshold < 0 || threshold > 100) {
             alert('Inserisci una soglia di scarto valida (0-100).');
             return;
@@ -419,8 +446,8 @@
             alert('Inserisci una finestra di media mobile valida (1-50).');
             return;
         }
-        if (enabled && (isNaN(polyDeg) || polyDeg < 1 || polyDeg > 20)) {
-            alert('Inserisci un grado del polinomio valido (1-20).');
+        if (enabled && (isNaN(polyDeg) || polyDeg < 1 || polyDeg > maxDegree)) {
+            alert(`Inserisci un grado del polinomio valido (1-${maxDegree}).`);
             return;
         }
 
@@ -751,8 +778,9 @@
 
                 let polyTemp = [];
                 let polyHum = [];
+                const maxDegree = getMaxPolyDegree(queryHours);
 
-                if (config.enableInterpolation && temps.length > 0) {
+                if (config.enableInterpolation && temps.length > 0 && config.polyDegree <= maxDegree) {
                     const modelTemp = solvePolynomialRegression(temps, config.polyDegree);
                     const modelHum = solvePolynomialRegression(hums, config.polyDegree);
 
