@@ -344,6 +344,11 @@
         <div class="form-group" id="polyDegreeGroup">
             <label for="polyDegree">Grado Polinomio</label>
             <input type="number" id="polyDegree" min="1" max="20" step="1">
+            <small style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
+
+            <label for="polyLambda" style="margin-top: 12px;">Regolarizzazione (Lambda)</label>
+            <input type="number" id="polyLambda" min="0" max="1" step="0.001">
+            <small style="color: #718096; font-size: 0.8em;">Parametro per stabilizzare la curva (es. 0.01). Più è alto, più la curva è "rigida".</small>
             <small id="polyDegreeHelp" style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
         </div>
         <div class="modal-footer">
@@ -375,7 +380,8 @@
         discardThreshold: 10,
         movingAverageWindow: 5,
         enableInterpolation: false,
-        polyDegree: 3
+        polyDegree: 3,
+        polyLambda: 0.01
     };
 
     function getCurrentRangeHours() {
@@ -403,6 +409,7 @@
         document.getElementById('movingAverageWindow').value = config.movingAverageWindow;
         document.getElementById('enableInterpolation').checked = !!config.enableInterpolation;
         document.getElementById('polyDegree').value = config.polyDegree;
+        document.getElementById('polyLambda').value = config.polyLambda || 0.01;
         togglePolyDegreeVisibility();
     }
 
@@ -433,6 +440,7 @@
         const threshold = parseInt(document.getElementById('discardThreshold').value);
         const windowSize = parseInt(document.getElementById('movingAverageWindow').value);
         const polyDeg = parseInt(document.getElementById('polyDegree').value);
+        const polyLamb = parseFloat(document.getElementById('polyLambda').value);
         const enabled = document.getElementById('enableInterpolation').checked;
 
         const rangeHours = getCurrentRangeHours();
@@ -450,11 +458,16 @@
             alert(`Inserisci un grado del polinomio valido (1-${maxDegree}).`);
             return;
         }
+        if (enabled && (isNaN(polyLamb) || polyLamb < 0)) {
+            alert('Inserisci un valore di regolarizzazione valido.');
+            return;
+        }
 
         config.discardThreshold = threshold;
         config.movingAverageWindow = windowSize;
         config.enableInterpolation = enabled;
         config.polyDegree = polyDeg;
+        config.polyLambda = polyLamb;
 
         localStorage.setItem('sensorConfig', JSON.stringify(config));
         closeConfig();
@@ -558,7 +571,7 @@
         updateChart();
     }
 
-    function solvePolynomialRegression(data, degree) {
+    function solvePolynomialRegression(data, degree, lambda = 0) {
         const n = data.length;
         const validData = data.filter(p => p.y !== null);
         if (validData.length <= degree) return null;
@@ -590,6 +603,11 @@
                 }
                 A[i][j] = sum;
             }
+            // Aggiungi regolarizzazione Ridge
+            if (lambda > 0 && i > 0) {
+                A[i][i] += lambda;
+            }
+
             let sumY = 0;
             for (let k = 0; k < m; k++) {
                 sumY += Y[k] * Math.pow(X[k], i);
