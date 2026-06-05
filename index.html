@@ -344,12 +344,11 @@
         <div class="form-group" id="polyDegreeGroup">
             <label for="polyDegree">Grado Polinomio</label>
             <input type="number" id="polyDegree" min="1" max="20" step="1">
-            <small style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
+            <small id="polyDegreeHelp" style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
 
             <label for="polyLambda" style="margin-top: 12px;">Regolarizzazione (Lambda)</label>
             <input type="number" id="polyLambda" min="0" max="1" step="0.001">
             <small style="color: #718096; font-size: 0.8em;">Parametro per stabilizzare la curva (es. 0.01). Più è alto, più la curva è "rigida".</small>
-            <small id="polyDegreeHelp" style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
         </div>
         <div class="modal-footer">
             <button class="btn-cancel" onclick="closeConfig()">Annulla</button>
@@ -396,7 +395,11 @@
     }
 
     function getMaxPolyDegree(hours) {
-        if (hours > 0 && hours <= 1) return 9;
+        if (hours <= 0) return 20; // "Tutto"
+        if (hours <= 1) return 9;
+        if (hours <= 6) return 12;
+        if (hours <= 24) return 15;
+        if (hours <= 168) return 18;
         return 20;
     }
 
@@ -427,6 +430,9 @@
         const polyHelp = document.getElementById('polyDegreeHelp');
 
         polyInput.max = maxDegree;
+        if (parseInt(polyInput.value) > maxDegree) {
+            polyInput.value = maxDegree;
+        }
         polyHelp.textContent = `Grado della curva di regressione polinomiale (max ${maxDegree} per l'intervallo attuale).`;
 
         document.getElementById('configModal').style.display = 'flex';
@@ -798,9 +804,10 @@
                 let polyHum = [];
                 const maxDegree = getMaxPolyDegree(queryHours);
 
-                if (config.enableInterpolation && temps.length > 0 && config.polyDegree <= maxDegree) {
-                    const modelTemp = solvePolynomialRegression(temps, config.polyDegree);
-                    const modelHum = solvePolynomialRegression(hums, config.polyDegree);
+                if (config.enableInterpolation && temps.length > 0) {
+                    const effectiveDegree = Math.min(config.polyDegree, maxDegree);
+                    const modelTemp = solvePolynomialRegression(temps, effectiveDegree);
+                    const modelHum = solvePolynomialRegression(hums, effectiveDegree);
 
                     const numPoints = 100;
                     const startTs = temps[0].x.getTime();
