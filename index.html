@@ -335,6 +335,17 @@
             <input type="number" id="movingAverageWindow" min="1" max="50" step="1">
             <small style="color: #718096; font-size: 0.8em;">Numero di campioni per il calcolo della media mobile.</small>
         </div>
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="enableInterpolation" style="width: auto;">
+                Abilita Interpolazione Polinomiale
+            </label>
+        </div>
+        <div class="form-group" id="polyDegreeGroup">
+            <label for="polyDegree">Grado Polinomio (1-20)</label>
+            <input type="number" id="polyDegree" min="1" max="20" step="1">
+            <small style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
+        </div>
         <div class="modal-footer">
             <button class="btn-cancel" onclick="closeConfig()">Annulla</button>
             <button class="btn-save" onclick="saveSettings()">Salva</button>
@@ -362,17 +373,29 @@
     let currentHours = 6;
     let config = {
         discardThreshold: 10,
-        movingAverageWindow: 5
+        movingAverageWindow: 5,
+        enableInterpolation: false,
+        polyDegree: 3
     };
 
     function loadConfig() {
         const saved = localStorage.getItem('sensorConfig');
         if (saved) {
-            config = JSON.parse(saved);
+            config = Object.assign(config, JSON.parse(saved));
         }
         document.getElementById('discardThreshold').value = config.discardThreshold;
         document.getElementById('movingAverageWindow').value = config.movingAverageWindow;
+        document.getElementById('enableInterpolation').checked = !!config.enableInterpolation;
+        document.getElementById('polyDegree').value = config.polyDegree;
+        togglePolyDegreeVisibility();
     }
+
+    function togglePolyDegreeVisibility() {
+        const enabled = document.getElementById('enableInterpolation').checked;
+        document.getElementById('polyDegreeGroup').style.display = enabled ? 'block' : 'none';
+    }
+
+    document.getElementById('enableInterpolation')?.addEventListener('change', togglePolyDegreeVisibility);
 
     function openConfig() {
         document.getElementById('configModal').style.display = 'flex';
@@ -385,6 +408,8 @@
     function saveSettings() {
         const threshold = parseInt(document.getElementById('discardThreshold').value);
         const windowSize = parseInt(document.getElementById('movingAverageWindow').value);
+        const polyDeg = parseInt(document.getElementById('polyDegree').value);
+        const enabled = document.getElementById('enableInterpolation').checked;
 
         if (isNaN(threshold) || threshold < 0 || threshold > 100) {
             alert('Inserisci una soglia di scarto valida (0-100).');
@@ -394,9 +419,16 @@
             alert('Inserisci una finestra di media mobile valida (1-50).');
             return;
         }
+        if (enabled && (isNaN(polyDeg) || polyDeg < 1 || polyDeg > 20)) {
+            alert('Inserisci un grado del polinomio valido (1-20).');
+            return;
+        }
 
         config.discardThreshold = threshold;
         config.movingAverageWindow = windowSize;
+        config.enableInterpolation = enabled;
+        config.polyDegree = polyDeg;
+
         localStorage.setItem('sensorConfig', JSON.stringify(config));
         closeConfig();
         updateChart();
@@ -497,6 +529,94 @@
         });
 
         updateChart();
+    }
+
+    function solvePolynomialRegression(data, degree) {
+        const n = data.length;
+        const validData = data.filter(p => p.y !== null);
+        if (validData.length <= degree) return null;
+
+        const xMin = validData[0].x.getTime();
+        const xMax = validData[validData.length - 1].x.getTime();
+        const xRange = xMax - xMin;
+
+        if (xRange === 0) return null;
+
+        const X = [];
+        const Y = [];
+
+        for (let i = 0; i < validData.length; i++) {
+            const x = (validData[i].x.getTime() - xMin) / xRange;
+            X.push(x);
+            Y.push(validData[i].y);
+        }
+
+        const m = X.length;
+        const size = degree + 1;
+        const A = Array.from({ length: size }, () => new Float64Array(size + 1));
+
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                let sum = 0;
+                for (let k = 0; k < m; k++) {
+                    sum += Math.pow(X[k], i + j);
+                }
+                A[i][j] = sum;
+            }
+            let sumY = 0;
+            for (let k = 0; k < m; k++) {
+                sumY += Y[k] * Math.pow(X[k], i);
+            }
+            A[i][size] = sumY;
+        }
+
+        for (let i = 0; i < size; i++) {
+            let max = Math.abs(A[i][i]);
+            let maxRow = i;
+            for (let k = i + 1; k < size; k++) {
+                if (Math.abs(A[k][i]) > max) {
+                    max = Math.abs(A[k][i]);
+                    maxRow = k;
+                }
+            }
+
+            [A[i], A[maxRow]] = [A[maxRow], A[i]];
+
+            if (Math.abs(A[i][i]) < 1e-12) return null;
+
+            for (let k = i + 1; k < size; k++) {
+                const c = -A[k][i] / A[i][i];
+                for (let j = i; j <= size; j++) {
+                    if (i === j) {
+                        A[k][j] = 0;
+                    } else {
+                        A[k][j] += c * A[i][j];
+                    }
+                }
+            }
+        }
+
+        const coeffs = new Float64Array(size);
+        for (let i = size - 1; i >= 0; i--) {
+            coeffs[i] = A[i][size] / A[i][i];
+            for (let k = i - 1; k >= 0; k--) {
+                A[k][size] -= A[k][i] * coeffs[i];
+            }
+        }
+
+        return {
+            coeffs,
+            xMin,
+            xRange,
+            predict: function(ts) {
+                const x = (ts - this.xMin) / this.xRange;
+                let y = 0;
+                for (let i = 0; i < this.coeffs.length; i++) {
+                    y += this.coeffs[i] * Math.pow(x, i);
+                }
+                return y;
+            }
+        };
     }
 
     function updateChart() {
@@ -629,6 +749,25 @@
                 document.getElementById('lastTemp').textContent = lastTempObj.y !== null ? lastTempObj.y.toFixed(1) : '--';
                 document.getElementById('lastHum').textContent  = lastHumObj.y !== null ? lastHumObj.y.toFixed(1) : '--';
 
+                let polyTemp = [];
+                let polyHum = [];
+
+                if (config.enableInterpolation && temps.length > 0) {
+                    const modelTemp = solvePolynomialRegression(temps, config.polyDegree);
+                    const modelHum = solvePolynomialRegression(hums, config.polyDegree);
+
+                    const numPoints = 100;
+                    const startTs = temps[0].x.getTime();
+                    const endTs = temps[temps.length - 1].x.getTime();
+                    const step = (endTs - startTs) / (numPoints - 1);
+
+                    for (let i = 0; i < numPoints; i++) {
+                        const curTs = startTs + i * step;
+                        if (modelTemp) polyTemp.push({ x: new Date(curTs), y: modelTemp.predict(curTs) });
+                        if (modelHum) polyHum.push({ x: new Date(curTs), y: modelHum.predict(curTs) });
+                    }
+                }
+
                 const showPoints = queryHours > 0 && queryHours <= 1;
                 const radius = 0;
                 const timeUnit = showPoints ? 'minute' : (queryHours > 0 && queryHours <= 24 ? 'hour' : 'day');
@@ -636,6 +775,8 @@
                 if (sensorChart) {
                     sensorChart.data.datasets[0].data = temps;
                     sensorChart.data.datasets[1].data = hums;
+                    sensorChart.data.datasets[2].data = polyTemp;
+                    sensorChart.data.datasets[3].data = polyHum;
                     sensorChart.data.datasets[0].pointRadius = radius;
                     sensorChart.data.datasets[1].pointRadius = radius;
                     sensorChart.options.scales.x.time.unit = timeUnit;
@@ -664,6 +805,28 @@
                                     borderWidth: 2,
                                     pointRadius: radius,
                                     tension: 0.3,
+                                    yAxisID: 'yHum',
+                                },
+                                {
+                                    label: 'Interpolazione Temp (°C)',
+                                    data: polyTemp,
+                                    borderColor: 'rgb(49, 130, 206)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    pointRadius: 0,
+                                    fill: false,
+                                    tension: 0.4,
+                                    yAxisID: 'yTemp',
+                                },
+                                {
+                                    label: 'Interpolazione Umid (%)',
+                                    data: polyHum,
+                                    borderColor: 'rgb(229, 62, 62)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    pointRadius: 0,
+                                    fill: false,
+                                    tension: 0.4,
                                     yAxisID: 'yHum',
                                 }
                             ]
