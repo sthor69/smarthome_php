@@ -68,9 +68,11 @@
             gap: 16px;
             margin-bottom: 20px;
             justify-content: center;
+            flex-wrap: wrap;
         }
         .card {
             flex: 1;
+            min-width: 160px;
             max-width: 200px;
             padding: 16px;
             border-radius: 10px;
@@ -78,10 +80,12 @@
         }
         .card.temp { background: #ebf8ff; border: 1px solid #bee3f8; }
         .card.hum  { background: #fff5f5; border: 1px solid #fed7d7; }
+        .card.forecast { background: #f0fff4; border: 1px solid #c6f6d5; }
         .card .label { font-size: 0.8em; color: #718096; margin-bottom: 4px; }
         .card .value { font-size: 2em; font-weight: bold; }
         .card.temp .value { color: #3182ce; }
         .card.hum  .value { color: #e53e3e; }
+        .card.forecast .value { color: #2f855a; font-size: 1.5em; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .card .unit { font-size: 0.9em; color: #718096; }
 
         .controls {
@@ -280,6 +284,14 @@
             <div class="label">Ultima umidità</div>
             <div class="value" id="lastHum">--</div>
             <div class="unit">%</div>
+        </div>
+        <div class="card forecast">
+            <div class="label">Previsione domani</div>
+            <div class="value" id="forecastValue">
+                <span id="forecastIcon">--</span>
+                <span id="forecastText" style="font-size: 0.7em;">Calcolo...</span>
+            </div>
+            <div class="unit" id="trendInfo" style="font-size: 0.7em;">Basata sui trend</div>
         </div>
     </div>
 
@@ -577,6 +589,83 @@
         updateChart();
     }
 
+    function calculateSlope(data) {
+        if (data.length < 2) return 0;
+
+        // Prendiamo i dati delle ultime 6 ore per il trend (se disponibili)
+        // Altrimenti usiamo tutto quello che abbiamo
+        const now = data[data.length - 1].x.getTime();
+        const sixHoursAgo = now - (6 * 3600 * 1000);
+        const recentData = data.filter(p => p.x.getTime() >= sixHoursAgo && p.y !== null);
+
+        if (recentData.length < 2) return 0;
+
+        const n = recentData.length;
+        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        const x0 = recentData[0].x.getTime();
+
+        for (const p of recentData) {
+            const x = (p.x.getTime() - x0) / (3600 * 1000); // ore dall'inizio
+            const y = p.y;
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumXX += x * x;
+        }
+
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        return isNaN(slope) ? 0 : slope;
+    }
+
+    function updateForecast(temps, hums) {
+        const tSlope = calculateSlope(temps);
+        const hSlope = calculateSlope(hums);
+
+        let icon = '⛅';
+        let text = 'Variabile';
+
+        // Logica Euristica Semplice:
+        // - Pressione che scende (umidità che sale) e temperatura che scende -> Pioggia
+        // - Umidità che scende e temperatura che sale -> Sereno
+        // - Umidità stabile e temperatura stabile -> Stabile
+
+        if (hSlope > 0.5) { // Umidità in netto aumento
+            if (tSlope < -0.2) {
+                icon = '🌧️';
+                text = 'Pioggia';
+            } else {
+                icon = '☁️';
+                text = 'Nuvoloso';
+            }
+        } else if (hSlope < -0.5) { // Umidità in netto calo
+            if (tSlope > 0.2) {
+                icon = '☀️';
+                text = 'Sereno';
+            } else {
+                icon = '🌤️';
+                text = 'Poco Nuvoloso';
+            }
+        } else { // Trend umidità moderato
+            if (tSlope > 0.5) {
+                icon = '☀️';
+                text = 'Caldo in aumento';
+            } else if (tSlope < -0.5) {
+                icon = '❄️';
+                text = 'Freddo in aumento';
+            } else {
+                icon = '⛅';
+                text = 'Stabile';
+            }
+        }
+
+        document.getElementById('forecastIcon').textContent = icon;
+        document.getElementById('forecastText').textContent = text;
+
+        const tTrend = tSlope > 0.1 ? '↗️' : (tSlope < -0.1 ? '↘️' : '→');
+        const hTrend = hSlope > 0.1 ? '↗️' : (hSlope < -0.1 ? '↘️' : '→');
+        document.getElementById('trendInfo').textContent = `Trend T:${tTrend} H:${hTrend}`;
+    }
+
     function solvePolynomialRegression(data, degree, lambda = 0) {
         const n = data.length;
         const validData = data.filter(p => p.y !== null);
@@ -806,6 +895,8 @@
                 const lastHumObj = hums[hums.length - 1];
                 document.getElementById('lastTemp').textContent = lastTempObj.y !== null ? lastTempObj.y.toFixed(1) : '--';
                 document.getElementById('lastHum').textContent  = lastHumObj.y !== null ? lastHumObj.y.toFixed(1) : '--';
+
+                updateForecast(temps, hums);
 
                 let polyTemp = [];
                 let polyHum = [];
