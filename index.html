@@ -957,7 +957,8 @@
     }
 
     function exportData(all) {
-        let url = 'export.php';
+        const params = new URLSearchParams();
+
         if (!all) {
             const startVal = document.getElementById('startDate').value;
             const endVal = document.getElementById('endDate').value;
@@ -970,12 +971,20 @@
                     String(d.getUTCDate()).padStart(2, '0') + ' ' +
                     String(d.getUTCHours()).padStart(2, '0') + ':' +
                     String(d.getUTCMinutes()).padStart(2, '0') + ':00';
-                url += `?start=${encodeURIComponent(toSqlUtc(startD))}&end=${encodeURIComponent(toSqlUtc(endD))}`;
+                params.append('start', toSqlUtc(startD));
+                params.append('end', toSqlUtc(endD));
             } else if (currentHours > 0) {
-                url += `?hours=${currentHours}`;
+                params.append('hours', currentHours);
             }
         }
-        window.location.href = url;
+
+        params.append('discardThreshold', config.discardThreshold);
+        params.append('movingAverageWindow', config.movingAverageWindow);
+        params.append('enableInterpolation', config.enableInterpolation ? 1 : 0);
+        params.append('polyDegree', config.polyDegree);
+        params.append('polyLambda', config.polyLambda);
+
+        window.location.href = 'export.php?' + params.toString();
     }
 
     updateChart();
