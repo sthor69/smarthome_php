@@ -813,8 +813,8 @@
 
                 if (config.enableInterpolation && temps.length > 0) {
                     const effectiveDegree = Math.min(config.polyDegree, maxDegree);
-                    const modelTemp = solvePolynomialRegression(temps, effectiveDegree);
-                    const modelHum = solvePolynomialRegression(hums, effectiveDegree);
+                    const modelTemp = solvePolynomialRegression(temps, effectiveDegree, config.polyLambda);
+                    const modelHum = solvePolynomialRegression(hums, effectiveDegree, config.polyLambda);
 
                     const numPoints = 100;
                     const startTs = temps[0].x.getTime();
