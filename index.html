@@ -695,11 +695,15 @@
 
         fetch(url)
             .then(r => r.json())
-            .then(data => {
-                if (data.error) {
-                    setStatus('Errore: ' + data.error, true);
+            .then(res => {
+                if (res.error) {
+                    setStatus('Errore: ' + res.error, true);
                     return;
                 }
+
+                const data = res.data || [];
+                const samplingRate = res.samplingRate || 1;
+
                 if (data.length === 0) {
                     setStatus('Nessun dato nel periodo selezionato.', false);
                     return;
@@ -768,13 +772,16 @@
                 let tempWindow = [];
                 let humWindow = [];
 
+                const effectiveGap = 120000 * samplingRate;
+                const effectiveWindow = Math.max(1, Math.round(config.movingAverageWindow / samplingRate));
+
                 filteredData.forEach(r => {
                     // Trattiamo il timestamp come ora locale (è già stato convertito dal backend)
                     const ts = new Date(r.timestamp.replace(' ', 'T'));
-                    // Se c'è un buco > 2 minuti (120000ms), inseriamo un null per spezzare la linea
-                    if (lastTs && (ts - lastTs) > 120000) {
-                        temps.push({ x: new Date(lastTs.getTime() + 10000), y: null });
-                        hums.push({ x: new Date(lastTs.getTime() + 10000), y: null });
+                    // Se c'è un buco, inseriamo un null per spezzare la linea
+                    if (lastTs && (ts - lastTs) > effectiveGap) {
+                        temps.push({ x: new Date(lastTs.getTime() + 10000 * samplingRate), y: null });
+                        hums.push({ x: new Date(lastTs.getTime() + 10000 * samplingRate), y: null });
                         // Reset moving average window on gap
                         tempWindow = [];
                         humWindow = [];
@@ -783,8 +790,8 @@
                     tempWindow.push(r.temperature);
                     humWindow.push(r.humidity);
 
-                    if (tempWindow.length > config.movingAverageWindow) tempWindow.shift();
-                    if (humWindow.length > config.movingAverageWindow) humWindow.shift();
+                    if (tempWindow.length > effectiveWindow) tempWindow.shift();
+                    if (humWindow.length > effectiveWindow) humWindow.shift();
 
                     const avgTemp = tempWindow.reduce((a, b) => a + b, 0) / tempWindow.length;
                     const avgHum = humWindow.reduce((a, b) => a + b, 0) / humWindow.length;

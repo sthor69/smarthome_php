@@ -29,32 +29,68 @@ try {
     $start = $_GET['start'] ?? null;
     $end   = $_GET['end']   ?? null;
 
+    $count = 0;
     if ($start && $end) {
-        write_log('INFO', "Fetching data between $start and $end for user '{$_SESSION['username']}'");
-        $stmt = $db->prepare("
-            SELECT timestamp, temperature, humidity
-            FROM measurements
-            WHERE timestamp BETWEEN :start AND :end
-            ORDER BY timestamp ASC
-        ");
-        $stmt->execute([':start' => $start, ':end' => $end]);
+        $countStmt = $db->prepare("SELECT COUNT(*) FROM measurements WHERE timestamp BETWEEN :start AND :end");
+        $countStmt->execute([':start' => $start, ':end' => $end]);
+        $count = $countStmt->fetchColumn();
     } elseif ($hours > 0) {
-        write_log('INFO', "Fetching data for last $hours hours for user '{$_SESSION['username']}'");
         $threshold = gmdate('Y-m-d H:i:s', time() - ($hours * 3600));
-        $stmt = $db->prepare("
-            SELECT timestamp, temperature, humidity
-            FROM measurements
-            WHERE timestamp >= :threshold
-            ORDER BY timestamp ASC
-        ");
-        $stmt->execute([':threshold' => $threshold]);
+        $countStmt = $db->prepare("SELECT COUNT(*) FROM measurements WHERE timestamp >= :threshold");
+        $countStmt->execute([':threshold' => $threshold]);
+        $count = $countStmt->fetchColumn();
     } else {
-        write_log('INFO', "Fetching all data for user '{$_SESSION['username']}'");
-        $stmt = $db->query("
-            SELECT timestamp, temperature, humidity
-            FROM measurements
-            ORDER BY timestamp ASC
-        ");
+        $count = $db->query("SELECT COUNT(*) FROM measurements")->fetchColumn();
+    }
+
+    $samplingRate = ($count > 1500) ? ceil($count / 1000) : 1;
+
+    if ($start && $end) {
+        write_log('INFO', "Fetching data between $start and $end for user '{$_SESSION['username']}' (sampling: $samplingRate)");
+        if ($samplingRate > 1) {
+            $stmt = $db->prepare("
+                SELECT timestamp, temperature, humidity FROM (
+                    SELECT timestamp, temperature, humidity,
+                    ROW_NUMBER() OVER (ORDER BY timestamp ASC) as rn
+                    FROM measurements
+                    WHERE timestamp BETWEEN :start AND :end
+                ) WHERE (rn - 1) % :rate = 0
+            ");
+            $stmt->execute([':start' => $start, ':end' => $end, ':rate' => $samplingRate]);
+        } else {
+            $stmt = $db->prepare("SELECT timestamp, temperature, humidity FROM measurements WHERE timestamp BETWEEN :start AND :end ORDER BY timestamp ASC");
+            $stmt->execute([':start' => $start, ':end' => $end]);
+        }
+    } elseif ($hours > 0) {
+        write_log('INFO', "Fetching data for last $hours hours for user '{$_SESSION['username']}' (sampling: $samplingRate)");
+        if ($samplingRate > 1) {
+            $stmt = $db->prepare("
+                SELECT timestamp, temperature, humidity FROM (
+                    SELECT timestamp, temperature, humidity,
+                    ROW_NUMBER() OVER (ORDER BY timestamp ASC) as rn
+                    FROM measurements
+                    WHERE timestamp >= :threshold
+                ) WHERE (rn - 1) % :rate = 0
+            ");
+            $stmt->execute([':threshold' => $threshold, ':rate' => $samplingRate]);
+        } else {
+            $stmt = $db->prepare("SELECT timestamp, temperature, humidity FROM measurements WHERE timestamp >= :threshold ORDER BY timestamp ASC");
+            $stmt->execute([':threshold' => $threshold]);
+        }
+    } else {
+        write_log('INFO', "Fetching all data for user '{$_SESSION['username']}' (sampling: $samplingRate)");
+        if ($samplingRate > 1) {
+            $stmt = $db->prepare("
+                SELECT timestamp, temperature, humidity FROM (
+                    SELECT timestamp, temperature, humidity,
+                    ROW_NUMBER() OVER (ORDER BY timestamp ASC) as rn
+                    FROM measurements
+                ) WHERE (rn - 1) % :rate = 0
+            ");
+            $stmt->execute([':rate' => $samplingRate]);
+        } else {
+            $stmt = $db->query("SELECT timestamp, temperature, humidity FROM measurements ORDER BY timestamp ASC");
+        }
     }
 
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -68,7 +104,10 @@ try {
         $row['timestamp'] = $dt->format('Y-m-d H:i:s');
     }
 
-    echo json_encode($results);
+    echo json_encode([
+        'data' => $results,
+        'samplingRate' => $samplingRate
+    ]);
 
 } catch (Throwable $e) {
     write_log('ERROR', "Data fetch error for user '{$_SESSION['username']}': " . $e->getMessage());
