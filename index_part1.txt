@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensore T&H - Storia</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            min-height: 100%;
+            overflow-y: auto;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f4f8;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 960px;
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+        }
+        .header-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            margin: 0;
+            font-size: 1.5em;
+        }
+        .header-actions {
+            position: absolute;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .config-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #4a5568;
+            transition: transform 0.2s;
+            padding: 0;
+        }
+        .config-btn:hover {
+            transform: rotate(45deg);
+            color: #2d3748;
+        }
+        .cards {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .card {
+            flex: 1;
+            min-width: 160px;
+            max-width: 200px;
+            padding: 16px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .card.temp { background: #ebf8ff; border: 1px solid #bee3f8; }
+        .card.hum  { background: #fff5f5; border: 1px solid #fed7d7; }
+        .card.forecast { background: #f0fff4; border: 1px solid #c6f6d5; }
+        .card .label { font-size: 0.8em; color: #718096; margin-bottom: 4px; }
+        .card .value { font-size: 2em; font-weight: bold; }
+        .card.temp .value { color: #3182ce; }
+        .card.hum  .value { color: #e53e3e; }
+        .card.forecast .value { color: #2f855a; font-size: 1.5em; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .card .unit { font-size: 0.9em; color: #718096; }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .controls button {
+            padding: 6px 16px;
+            border: 1px solid #cbd5e0;
+            border-radius: 20px;
+            background: white;
+            color: #4a5568;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .controls button:hover { background: #edf2f7; }
+        .controls button.active {
+            background: #4299e1;
+            color: white;
+            border-color: #4299e1;
+        }
+
+        .custom-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+            align-items: center;
+            font-size: 0.85em;
+            color: #4a5568;
+        }
+        .custom-controls input {
+            padding: 4px 8px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            color: #4a5568;
+        }
+        .custom-controls button {
+            padding: 6px 16px;
+            border: 1px solid #cbd5e0;
+            border-radius: 20px;
+            background: #edf2f7;
+            color: #4a5568;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .custom-controls button:hover { background: #cbd5e0; }
+
+        .nav-btn {
+            padding: 4px 10px !important;
+            border-radius: 4px !important;
+            margin: 0 2px;
+            font-weight: bold;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 380px;
+            width: 100%;
+        }
+        .status {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.8em;
+            color: #a0aec0;
+        }
+        .status.error { color: #e53e3e; }
+
+        .export-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .export-controls button {
+            padding: 8px 20px;
+            border: 1px solid #2f855a;
+            border-radius: 20px;
+            background: #48bb78;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .export-controls button:hover {
+            background: #38a169;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .close-modal {
+            cursor: pointer;
+            font-size: 1.5em;
+            color: #a0aec0;
+        }
+        .close-modal:hover { color: #4a5568; }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-size: 0.9em;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+        }
+        .modal-footer {
+            margin-top: 24px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .btn-save {
+            padding: 8px 24px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-save:hover { background: #3182ce; }
+        .btn-cancel {
+            padding: 8px 24px;
+            background: #edf2f7;
+            color: #4a5568;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .btn-cancel:hover { background: #cbd5e0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-container">
+        <h1>🌡️ Temperatura &amp; Umidità</h1>
+        <div class="header-actions">
+            <button class="config-btn" onclick="openConfig()" title="Configurazione">⚙️</button>
+            <button onclick="logout()" style="background:none; border:1px solid #cbd5e0; border-radius:4px; padding:4px 8px; cursor:pointer; color:#4a5568; font-size:0.8em;">Logout</button>
+        </div>
+    </div>
+
+    <!-- Card valori attuali -->
+    <div class="cards">
+        <div class="card temp">
+            <div class="label">Ultima temperatura</div>
+            <div class="value" id="lastTemp">--</div>
+            <div class="unit">°C</div>
+        </div>
+        <div class="card hum">
+            <div class="label">Ultima umidità</div>
+            <div class="value" id="lastHum">--</div>
+            <div class="unit">%</div>
+        </div>
+        <div class="card forecast">
+            <div class="label">Previsione domani</div>
+            <div class="value" id="forecastValue">
+                <span id="forecastIcon">--</span>
+                <span id="forecastText" style="font-size: 0.7em;">Calcolo...</span>
+            </div>
+            <div class="unit" id="trendInfo" style="font-size: 0.7em;">Basata sui trend</div>
+        </div>
+    </div>
+
+    <!-- Selettore periodo -->
+    <div class="controls">
+        <button onclick="setPeriod(1)"    id="btn1">1 ora</button>

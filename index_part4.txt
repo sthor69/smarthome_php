@@ -1,0 +1,185 @@
+                let polyTemp = [];
+                let polyHum = [];
+                const maxDegree = getMaxPolyDegree(queryHours);
+
+                if (config.enableInterpolation && temps.length > 0) {
+                    const effectiveDegree = Math.min(config.polyDegree, maxDegree);
+                    const modelTemp = solvePolynomialRegression(temps, effectiveDegree, config.polyLambda);
+                    const modelHum = solvePolynomialRegression(hums, effectiveDegree, config.polyLambda);
+
+                    const numPoints = 100;
+                    const startTs = temps[0].x.getTime();
+                    const endTs = temps[temps.length - 1].x.getTime();
+                    const step = (endTs - startTs) / (numPoints - 1);
+
+                    for (let i = 0; i < numPoints; i++) {
+                        const curTs = startTs + i * step;
+                        if (modelTemp) polyTemp.push({ x: new Date(curTs), y: modelTemp.predict(curTs) });
+                        if (modelHum) polyHum.push({ x: new Date(curTs), y: modelHum.predict(curTs) });
+                    }
+                }
+
+                const showPoints = queryHours > 0 && queryHours <= 1;
+                const radius = 0;
+                const timeUnit = showPoints ? 'minute' : (queryHours > 0 && queryHours <= 24 ? 'hour' : 'day');
+
+                if (sensorChart) {
+                    sensorChart.data.datasets[0].data = temps;
+                    sensorChart.data.datasets[1].data = hums;
+                    sensorChart.data.datasets[2].data = polyTemp;
+                    sensorChart.data.datasets[3].data = polyHum;
+                    sensorChart.data.datasets[0].pointRadius = radius;
+                    sensorChart.data.datasets[1].pointRadius = radius;
+                    sensorChart.options.scales.x.time.unit = timeUnit;
+                    sensorChart.update();
+                } else {
+                    const ctx = document.getElementById('sensorChart').getContext('2d');
+                    sensorChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            datasets: [
+                                {
+                                    label: 'Temperatura (°C)',
+                                    data: temps,
+                                    borderColor: 'rgb(49, 130, 206)',
+                                    backgroundColor: 'rgba(49, 130, 206, 0.1)',
+                                    borderWidth: 2,
+                                    pointRadius: radius,
+                                    tension: 0.3,
+                                    yAxisID: 'yTemp',
+                                },
+                                {
+                                    label: 'Umidità (%)',
+                                    data: hums,
+                                    borderColor: 'rgb(229, 62, 62)',
+                                    backgroundColor: 'rgba(229, 62, 62, 0.1)',
+                                    borderWidth: 2,
+                                    pointRadius: radius,
+                                    tension: 0.3,
+                                    yAxisID: 'yHum',
+                                },
+                                {
+                                    label: 'Interpolazione Temp (°C)',
+                                    data: polyTemp,
+                                    borderColor: 'rgb(49, 130, 206)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    pointRadius: 0,
+                                    fill: false,
+                                    tension: 0.4,
+                                    yAxisID: 'yTemp',
+                                },
+                                {
+                                    label: 'Interpolazione Umid (%)',
+                                    data: polyHum,
+                                    borderColor: 'rgb(229, 62, 62)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    pointRadius: 0,
+                                    fill: false,
+                                    tension: 0.4,
+                                    yAxisID: 'yHum',
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: ctx => {
+                                            const unit = ctx.datasetIndex === 0 ? '°C' : '%';
+                                            return ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} ${unit}`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: timeUnit,
+                                        displayFormats: {
+                                            minute: 'HH:mm',
+                                            hour: 'dd/MM HH:mm',
+                                            day: 'dd/MM'
+                                        },
+                                        tooltipFormat: 'dd/MM/yyyy HH:mm'
+                                    },
+                                    ticks: {
+                                        maxTicksLimit: 10,
+                                        maxRotation: 30,
+                                        font: { size: 11 }
+                                    }
+                                },
+                                yTemp: {
+                                    type: 'linear',
+                                    position: 'left',
+                                    title: { display: true, text: 'Temperatura (°C)', color: 'rgb(49,130,206)' },
+                                    ticks: { color: 'rgb(49,130,206)' },
+                                    grid: { color: 'rgba(49,130,206,0.1)' }
+                                },
+                                yHum: {
+                                    type: 'linear',
+                                    position: 'right',
+                                    min: 0, max: 100,
+                                    title: { display: true, text: 'Umidità (%)', color: 'rgb(229,62,62)' },
+                                    ticks: { color: 'rgb(229,62,62)' },
+                                    grid: { drawOnChartArea: false }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const ts = new Date(data[data.length-1].timestamp.replace(' ','T'));
+                setStatus(`Aggiornato: ${new Date().toLocaleTimeString('it-IT')} — ultimo dato: ${ts.toLocaleString('it-IT')}`);
+            })
+            .catch(e => setStatus('Errore fetch: ' + e, true));
+    }
+
+    function setStatus(msg, isError = false) {
+        const el = document.getElementById('status');
+        el.textContent = msg;
+        el.className = 'status' + (isError ? ' error' : '');
+    }
+
+    function exportData(all) {
+        const params = new URLSearchParams();
+
+        if (!all) {
+            const startVal = document.getElementById('startDate').value;
+            const endVal = document.getElementById('endDate').value;
+
+            if (startVal && endVal) {
+                const startD = new Date(startVal);
+                const endD = new Date(endVal);
+                const toSqlUtc = (d) => d.getUTCFullYear() + '-' +
+                    String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                    String(d.getUTCDate()).padStart(2, '0') + ' ' +
+                    String(d.getUTCHours()).padStart(2, '0') + ':' +
+                    String(d.getUTCMinutes()).padStart(2, '0') + ':00';
+                params.append('start', toSqlUtc(startD));
+                params.append('end', toSqlUtc(endD));
+            } else if (currentHours > 0) {
+                params.append('hours', currentHours);
+            }
+        }
+
+        params.append('discardThreshold', config.discardThreshold);
+        params.append('movingAverageWindow', config.movingAverageWindow);
+        params.append('enableInterpolation', config.enableInterpolation ? 1 : 0);
+        params.append('polyDegree', config.polyDegree);
+        params.append('polyLambda', config.polyLambda);
+
+        window.location.href = 'export.php?' + params.toString();
+    }
+
+    updateChart();
+    setInterval(updateChart, 30000);
+</script>
+</body>
+</html>

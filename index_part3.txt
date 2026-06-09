@@ -1,0 +1,299 @@
+        if (recentData.length < 2) return 0;
+
+        const n = recentData.length;
+        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        const x0 = recentData[0].x.getTime();
+
+        for (const p of recentData) {
+            const x = (p.x.getTime() - x0) / (3600 * 1000); // ore dall'inizio
+            const y = p.y;
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumXX += x * x;
+        }
+
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        return isNaN(slope) ? 0 : slope;
+    }
+
+    function updateForecast(temps, hums) {
+        const tSlope = calculateSlope(temps);
+        const hSlope = calculateSlope(hums);
+
+        let icon = '⛅';
+        let text = 'Variabile';
+
+        // Logica Euristica Semplice:
+        // - Pressione che scende (umidità che sale) e temperatura che scende -> Pioggia
+        // - Umidità che scende e temperatura che sale -> Sereno
+        // - Umidità stabile e temperatura stabile -> Stabile
+
+        if (hSlope > 0.5) { // Umidità in netto aumento
+            if (tSlope < -0.2) {
+                icon = '🌧️';
+                text = 'Pioggia';
+            } else {
+                icon = '☁️';
+                text = 'Nuvoloso';
+            }
+        } else if (hSlope < -0.5) { // Umidità in netto calo
+            if (tSlope > 0.2) {
+                icon = '☀️';
+                text = 'Sereno';
+            } else {
+                icon = '🌤️';
+                text = 'Poco Nuvoloso';
+            }
+        } else { // Trend umidità moderato
+            if (tSlope > 0.5) {
+                icon = '☀️';
+                text = 'Caldo in aumento';
+            } else if (tSlope < -0.5) {
+                icon = '❄️';
+                text = 'Freddo in aumento';
+            } else {
+                icon = '⛅';
+                text = 'Stabile';
+            }
+        }
+
+        document.getElementById('forecastIcon').textContent = icon;
+        document.getElementById('forecastText').textContent = text;
+
+        const tTrend = tSlope > 0.1 ? '↗️' : (tSlope < -0.1 ? '↘️' : '→');
+        const hTrend = hSlope > 0.1 ? '↗️' : (hSlope < -0.1 ? '↘️' : '→');
+        document.getElementById('trendInfo').textContent = `Trend T:${tTrend} H:${hTrend}`;
+    }
+
+    function solvePolynomialRegression(data, degree, lambda = 0) {
+        const n = data.length;
+        const validData = data.filter(p => p.y !== null);
+        if (validData.length <= degree) return null;
+
+        const xMin = validData[0].x.getTime();
+        const xMax = validData[validData.length - 1].x.getTime();
+        const xRange = xMax - xMin;
+
+        if (xRange === 0) return null;
+
+        const X = [];
+        const Y = [];
+
+        for (let i = 0; i < validData.length; i++) {
+            const x = (validData[i].x.getTime() - xMin) / xRange;
+            X.push(x);
+            Y.push(validData[i].y);
+        }
+
+        const m = X.length;
+        const size = degree + 1;
+        const A = Array.from({ length: size }, () => new Float64Array(size + 1));
+
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                let sum = 0;
+                for (let k = 0; k < m; k++) {
+                    sum += Math.pow(X[k], i + j);
+                }
+                A[i][j] = sum;
+            }
+            // Aggiungi regolarizzazione Ridge
+            if (lambda > 0 && i > 0) {
+                A[i][i] += lambda;
+            }
+
+            let sumY = 0;
+            for (let k = 0; k < m; k++) {
+                sumY += Y[k] * Math.pow(X[k], i);
+            }
+            A[i][size] = sumY;
+        }
+
+        for (let i = 0; i < size; i++) {
+            let max = Math.abs(A[i][i]);
+            let maxRow = i;
+            for (let k = i + 1; k < size; k++) {
+                if (Math.abs(A[k][i]) > max) {
+                    max = Math.abs(A[k][i]);
+                    maxRow = k;
+                }
+            }
+
+            [A[i], A[maxRow]] = [A[maxRow], A[i]];
+
+            if (Math.abs(A[i][i]) < 1e-12) return null;
+
+            for (let k = i + 1; k < size; k++) {
+                const c = -A[k][i] / A[i][i];
+                for (let j = i; j <= size; j++) {
+                    if (i === j) {
+                        A[k][j] = 0;
+                    } else {
+                        A[k][j] += c * A[i][j];
+                    }
+                }
+            }
+        }
+
+        const coeffs = new Float64Array(size);
+        for (let i = size - 1; i >= 0; i--) {
+            coeffs[i] = A[i][size] / A[i][i];
+            for (let k = i - 1; k >= 0; k--) {
+                A[k][size] -= A[k][i] * coeffs[i];
+            }
+        }
+
+        return {
+            coeffs,
+            xMin,
+            xRange,
+            predict: function(ts) {
+                const x = (ts - this.xMin) / this.xRange;
+                let y = 0;
+                for (let i = 0; i < this.coeffs.length; i++) {
+                    y += this.coeffs[i] * Math.pow(x, i);
+                }
+                return y;
+            }
+        };
+    }
+
+    function updateChart() {
+        const startVal = document.getElementById('startDate').value;
+        const endVal = document.getElementById('endDate').value;
+
+        let url = 'data.php';
+        let queryHours = currentHours;
+        if (startVal && endVal) {
+            const startD = new Date(startVal);
+            const endD = new Date(endVal);
+
+            // Convert to UTC for the database (YYYY-MM-DD HH:mm:ss)
+            const toSqlUtc = (d) => d.getUTCFullYear() + '-' +
+                String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getUTCDate()).padStart(2, '0') + ' ' +
+                String(d.getUTCHours()).padStart(2, '0') + ':' +
+                String(d.getUTCMinutes()).padStart(2, '0') + ':00';
+
+            url += `?start=${encodeURIComponent(toSqlUtc(startD))}&end=${encodeURIComponent(toSqlUtc(endD))}`;
+            queryHours = (endD - startD) / (1000 * 60 * 60);
+        } else if (currentHours > 0) {
+            url += `?hours=${currentHours}`;
+        }
+
+        fetch(url)
+            .then(r => r.json())
+            .then(res => {
+                if (res.error) {
+                    setStatus('Errore: ' + res.error, true);
+                    return;
+                }
+
+                const data = res.data || [];
+                const samplingRate = res.samplingRate || 1;
+
+                if (data.length === 0) {
+                    setStatus('Nessun dato nel periodo selezionato.', false);
+                    return;
+                }
+
+                const temps = [];
+                const hums  = [];
+                let lastTs  = null;
+
+                let lastValidTemp = null;
+                let lastValidHum = null;
+                let lastRawTemp = null;
+                let lastRawHum = null;
+
+                const filteredData = [];
+                data.forEach(r => {
+                    let acceptTemp = true;
+                    let acceptHum = true;
+
+                    if (lastValidTemp !== null && config.discardThreshold > 0) {
+                        const diffV = Math.abs(r.temperature - lastValidTemp);
+                        const limitV = Math.max(Math.abs(lastValidTemp), 0.5) * (config.discardThreshold / 100);
+
+                        // Se è lontano dall'ultimo valido, controlliamo se è vicino all'ultimo RAW (recupero da salto)
+                        if (diffV > limitV) {
+                            if (lastRawTemp !== null) {
+                                const diffR = Math.abs(r.temperature - lastRawTemp);
+                                const limitR = Math.max(Math.abs(lastRawTemp), 0.5) * (config.discardThreshold / 100);
+                                if (diffR > limitR) acceptTemp = false;
+                            } else {
+                                acceptTemp = false;
+                            }
+                        }
+                    }
+
+                    if (lastValidHum !== null && config.discardThreshold > 0) {
+                        const diffV = Math.abs(r.humidity - lastValidHum);
+                        const limitV = Math.max(Math.abs(lastValidHum), 0.5) * (config.discardThreshold / 100);
+
+                        if (diffV > limitV) {
+                            if (lastRawHum !== null) {
+                                const diffR = Math.abs(r.humidity - lastRawHum);
+                                const limitR = Math.max(Math.abs(lastRawHum), 0.5) * (config.discardThreshold / 100);
+                                if (diffR > limitR) acceptHum = false;
+                            } else {
+                                acceptHum = false;
+                            }
+                        }
+                    }
+
+                    if (acceptTemp && acceptHum) {
+                        lastValidTemp = r.temperature;
+                        lastValidHum = r.humidity;
+                        filteredData.push(r);
+                    }
+
+                    lastRawTemp = r.temperature;
+                    lastRawHum = r.humidity;
+                });
+
+                if (filteredData.length === 0) {
+                    setStatus('Nessun dato valido dopo il filtraggio.', false);
+                    return;
+                }
+
+                let tempWindow = [];
+                let humWindow = [];
+
+                const effectiveGap = 120000 * samplingRate;
+                const effectiveWindow = Math.max(1, Math.round(config.movingAverageWindow / samplingRate));
+
+                filteredData.forEach(r => {
+                    // Trattiamo il timestamp come ora locale (è già stato convertito dal backend)
+                    const ts = new Date(r.timestamp.replace(' ', 'T'));
+                    // Se c'è un buco, inseriamo un null per spezzare la linea
+                    if (lastTs && (ts - lastTs) > effectiveGap) {
+                        temps.push({ x: new Date(lastTs.getTime() + 10000 * samplingRate), y: null });
+                        hums.push({ x: new Date(lastTs.getTime() + 10000 * samplingRate), y: null });
+                        // Reset moving average window on gap
+                        tempWindow = [];
+                        humWindow = [];
+                    }
+
+                    tempWindow.push(r.temperature);
+                    humWindow.push(r.humidity);
+
+                    if (tempWindow.length > effectiveWindow) tempWindow.shift();
+                    if (humWindow.length > effectiveWindow) humWindow.shift();
+
+                    const avgTemp = tempWindow.reduce((a, b) => a + b, 0) / tempWindow.length;
+                    const avgHum = humWindow.reduce((a, b) => a + b, 0) / humWindow.length;
+
+                    temps.push({ x: ts, y: avgTemp });
+                    hums.push({ x: ts, y: avgHum });
+                    lastTs = ts;
+                });
+
+                // Aggiorna card con l'ultimo valore (già mediato)
+                const lastTempObj = temps[temps.length - 1];
+                const lastHumObj = hums[hums.length - 1];
+                document.getElementById('lastTemp').textContent = lastTempObj.y !== null ? lastTempObj.y.toFixed(1) : '--';
+                document.getElementById('lastHum').textContent  = lastHumObj.y !== null ? lastHumObj.y.toFixed(1) : '--';
+
+                updateForecast(temps, hums);
