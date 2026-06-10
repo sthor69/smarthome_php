@@ -281,7 +281,7 @@ try {
             'raw_temp' => $r['temperature'],
             'raw_hum' => $r['humidity'],
             'avg_temp' => $avgTemp,
-            'avg_hum' => $avgHum
+            'avg_hum' => $avgHum,
             'vbat' => $r['battery_voltage'],
             'usb' => $r['usb_powered']
         ];
@@ -311,7 +311,7 @@ try {
         'Media Mobile Temp (°C)',
         'Media Mobile Umid (%)',
         'Interpolazione Temp (°C)',
-        'Interpolazione Umid (%)'
+        'Interpolazione Umid (%)',
         'Volt Batteria (V)',
         'Alimentazione USB'
     ], ';');
@@ -327,7 +327,7 @@ try {
             number_format($row['avg_temp'], 2, '.', ''),
             number_format($row['avg_hum'], 2, '.', ''),
             $pTemp !== '' ? number_format($pTemp, 2, '.', '') : '',
-            $pHum !== '' ? number_format($pHum, 2, '.', '') : ''
+            $pHum !== '' ? number_format($pHum, 2, '.', '') : '',
             number_format($row['vbat'], 2, '.', ''),
             $row['usb'] ? 'USB' : 'Batteria'
         ], ';');

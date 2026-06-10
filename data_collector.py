@@ -49,7 +49,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                 temperature REAL,
-                humidity REAL
+                humidity REAL,
                 battery_voltage REAL,
                 usb_powered INTEGER
             )
@@ -110,7 +110,7 @@ def notification_handler(sender, data):
     try:
         message = data.decode("utf-8").strip()
         log.debug(f"BLE raw: '{message}'")
-        match = re.search(r"T:([-+]?\d*\.?\d+),H:([-+]?\d*\.?\d+)", message)
+        match = re.search(r"T:([-+]?\d*\.?\d+),H:([-+]?\d*\.?\d+),V:([-+]?\d*\.?\d+),USB:(\d+)", message)
         if match:
             temp = float(match.group(1))
             hum = float(match.group(2))
