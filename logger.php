@@ -2,7 +2,7 @@
 date_default_timezone_set('Europe/Rome');
 
 function write_log($level, $message) {
-    $logFile = __DIR__ . '/logs/website..log';
+    $logFile = __DIR__ . '/logs/website.log';
     $timestamp = date('Y-m-d H:i:s');
     $scriptName = basename($_SERVER['PHP_SELF'] ?? 'unknown');
     $logEntry = "$timestamp [$level] [$scriptName] $message" . PHP_EOL;
