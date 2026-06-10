@@ -124,10 +124,9 @@ void loop(void) {
   Serial.println(" *C");
 
   // Send data over BLE UART
-  ble.print("T:");
+  float vbat = analogRead(A9) * 2.0 * 3.3 / 1024.0; bool isUSB = (USBSTA & (1 << VBUS)); ble.print("T:");
   ble.print(t);
-  ble.print(",H:");
-  ble.println(h);
+  ble.print(",H:"); ble.print(h); ble.print(",V:"); ble.print(vbat); ble.print(",USB:"); ble.println(isUSB); //
 
   // Wait 10 seconds before next reading
   delay(10000);

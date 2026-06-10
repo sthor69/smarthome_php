@@ -285,6 +285,11 @@
             <div class="value" id="lastHum">--</div>
             <div class="unit">%</div>
         </div>
+        <div class="card power" style="background: #f3e5f5; border: 1px solid #e1bee7;">
+            <div class="label">Stato Alimentazione</div>
+            <div class="value" id="powerValue" style="color: #7b1fa2;">--</div>
+            <div class="unit" id="powerSub">--</div>
+        </div>
         <div class="card forecast">
             <div class="label">Previsione domani</div>
             <div class="value" id="forecastValue">
@@ -895,6 +900,18 @@
                 const lastHumObj = hums[hums.length - 1];
                 document.getElementById('lastTemp').textContent = lastTempObj.y !== null ? lastTempObj.y.toFixed(1) : '--';
                 document.getElementById('lastHum').textContent  = lastHumObj.y !== null ? lastHumObj.y.toFixed(1) : '--';
+                const lastRecord = data[data.length - 1];
+                const pValEl = document.getElementById('powerValue');
+                const pSubEl = document.getElementById('powerSub');
+                if (lastRecord.usb_powered == 1) {
+                    pValEl.textContent = '🔌 USB';
+                    pSubEl.textContent = 'In carica';
+                } else if (lastRecord.battery_voltage) {
+                    const v = lastRecord.battery_voltage;
+                    const pct = Math.max(0, Math.min(100, ((v - 3.3) / (4.2 - 3.3)) * 100));
+                    pValEl.textContent = pct.toFixed(0) + '%';
+                    pSubEl.textContent = v.toFixed(2) + ' V';
+                }
 
                 updateForecast(temps, hums);
 

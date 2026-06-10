@@ -50,6 +50,8 @@ def init_db():
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                 temperature REAL,
                 humidity REAL
+                battery_voltage REAL,
+                usb_powered INTEGER
             )
         ''')
         conn.commit()
@@ -58,19 +60,19 @@ def init_db():
     except Exception as e:
         log.error(f"Errore init DB: {e}")
 
-def store_data(temperature, humidity):
+def store_data(temperature, humidity, vbat=None, usb=None):
     try:
         conn = sqlite3.connect(DB_PATH, timeout=10)  # aspetta fino a 10s
         cursor = conn.cursor()
         cursor.execute(
-            'INSERT INTO measurements (temperature, humidity) VALUES (?, ?)',
-            (temperature, humidity)
+            'INSERT INTO measurements (temperature, humidity, battery_voltage, usb_powered) VALUES (?, ?, ?, ?)',
+            (temperature, humidity, vbat, usb)
         )
         conn.commit()
         cursor.execute('SELECT COUNT(*) FROM measurements')
         count = cursor.fetchone()[0]
         conn.close()
-        log.info(f"Salvato: T={temperature:.1f} H={humidity:.1f} | Totale righe: {count}")
+        log.info(f"Salvato: T={temperature:.1f} H={humidity:.1f} V={vbat if vbat else 0:.2f} USB={usb if usb else 0} | Totale righe: {count}")
     except Exception as e:
         log.error(f"Errore salvataggio DB: {e}")
 
@@ -112,8 +114,10 @@ def notification_handler(sender, data):
         if match:
             temp = float(match.group(1))
             hum = float(match.group(2))
-            log.info(f"Ricevuto: T={temp:.1f}C  H={hum:.1f}%")
-            store_data(temp, hum)
+            vbat = float(match.group(3))
+            usb = int(match.group(4))
+            log.info(f"Ricevuto: T={temp:.1f}C  H={hum:.1f}% V={vbat:.2f}V USB={usb}")
+            store_data(temp, hum, vbat, usb)
         else:
             log.warning(f"Messaggio non riconosciuto: '{message}'")
     except Exception as e:

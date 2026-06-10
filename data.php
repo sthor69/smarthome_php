@@ -49,8 +49,8 @@ try {
         write_log('INFO', "Fetching data between $start and $end for user '{$_SESSION['username']}' (sampling: $samplingRate)");
         if ($samplingRate > 1) {
             $stmt = $db->prepare("
-                SELECT timestamp, temperature, humidity FROM (
-                    SELECT timestamp, temperature, humidity,
+                SELECT timestamp, temperature, humidity, battery_voltage, usb_powered FROM (
+                    SELECT timestamp, temperature, humidity, battery_voltage, usb_powered,
                     ROW_NUMBER() OVER (ORDER BY timestamp ASC) as rn
                     FROM measurements
                     WHERE timestamp BETWEEN :start AND :end
@@ -58,15 +58,15 @@ try {
             ");
             $stmt->execute([':start' => $start, ':end' => $end, ':rate' => $samplingRate]);
         } else {
-            $stmt = $db->prepare("SELECT timestamp, temperature, humidity FROM measurements WHERE timestamp BETWEEN :start AND :end ORDER BY timestamp ASC");
+            $stmt = $db->prepare("SELECT timestamp, temperature, humidity, battery_voltage, usb_powered FROM measurements WHERE timestamp BETWEEN :start AND :end ORDER BY timestamp ASC");
             $stmt->execute([':start' => $start, ':end' => $end]);
         }
     } elseif ($hours > 0) {
         write_log('INFO', "Fetching data for last $hours hours for user '{$_SESSION['username']}' (sampling: $samplingRate)");
         if ($samplingRate > 1) {
             $stmt = $db->prepare("
-                SELECT timestamp, temperature, humidity FROM (
-                    SELECT timestamp, temperature, humidity,
+                SELECT timestamp, temperature, humidity, battery_voltage, usb_powered FROM (
+                    SELECT timestamp, temperature, humidity, battery_voltage, usb_powered,
                     ROW_NUMBER() OVER (ORDER BY timestamp ASC) as rn
                     FROM measurements
                     WHERE timestamp >= :threshold
@@ -74,22 +74,22 @@ try {
             ");
             $stmt->execute([':threshold' => $threshold, ':rate' => $samplingRate]);
         } else {
-            $stmt = $db->prepare("SELECT timestamp, temperature, humidity FROM measurements WHERE timestamp >= :threshold ORDER BY timestamp ASC");
+            $stmt = $db->prepare("SELECT timestamp, temperature, humidity, battery_voltage, usb_powered FROM measurements WHERE timestamp >= :threshold ORDER BY timestamp ASC");
             $stmt->execute([':threshold' => $threshold]);
         }
     } else {
         write_log('INFO', "Fetching all data for user '{$_SESSION['username']}' (sampling: $samplingRate)");
         if ($samplingRate > 1) {
             $stmt = $db->prepare("
-                SELECT timestamp, temperature, humidity FROM (
-                    SELECT timestamp, temperature, humidity,
+                SELECT timestamp, temperature, humidity, battery_voltage, usb_powered FROM (
+                    SELECT timestamp, temperature, humidity, battery_voltage, usb_powered,
                     ROW_NUMBER() OVER (ORDER BY timestamp ASC) as rn
                     FROM measurements
                 ) WHERE (rn - 1) % :rate = 0
             ");
             $stmt->execute([':rate' => $samplingRate]);
         } else {
-            $stmt = $db->query("SELECT timestamp, temperature, humidity FROM measurements ORDER BY timestamp ASC");
+            $stmt = $db->query("SELECT timestamp, temperature, humidity, battery_voltage, usb_powered FROM measurements ORDER BY timestamp ASC");
         }
     }
 
