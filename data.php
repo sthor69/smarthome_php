@@ -1,5 +1,6 @@
 <?php
 require_once 'logger.php';
+require_once 'db.php';
 session_start();
 if (!isset($_SESSION['username'])) {
     header('HTTP/1.1 401 Unauthorized');
@@ -10,20 +11,8 @@ if (!isset($_SESSION['username'])) {
 header('Content-Type: application/json');
 date_default_timezone_set('Europe/Rome');
 
-$dbPath = '/var/www/smarthome/sensor_data.db';
-
-
-if (!file_exists($dbPath)) {
-    write_log('ERROR', "Database not found at $dbPath");
-    echo json_encode(['error' => 'Database non trovato']);
-    exit;
-}
-
 try {
-    $db = new PDO("sqlite:$dbPath", null, null, [
-                  PDO::SQLITE_ATTR_OPEN_FLAGS => PDO::SQLITE_OPEN_READONLY
-                  ]);
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = getDb(true);
 
     $hours = isset($_GET['hours']) ? intval($_GET['hours']) : 0;
     $start = $_GET['start'] ?? null;
