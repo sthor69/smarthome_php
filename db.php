@@ -51,6 +51,18 @@ function getDb($readOnly = false) {
                 $db->exec("UPDATE users SET is_confirmed = 1");
             }
 
+            // Ensure sthor69 exists (restoration if erased)
+            $adminUser = 'sthor69';
+            $adminHash = '$2y$10$LI10bOQn6shZsTYU35gGlOo92rtg0armiv7ZyCl/8iaGC/xNAma62'; // Hash for 'Gualano0,'
+
+            $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt->execute([$adminUser]);
+            if (!$stmt->fetch()) {
+                $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, is_confirmed) VALUES (?, ?, 'sthor69@example.com', 1)");
+                $stmt->execute([$adminUser, $adminHash]);
+                write_log('INFO', "Admin user '$adminUser' restored.");
+            }
+
             // Migration: one-time account erasure for Issue #52
             $markerFile = dirname($dbPath) . '/logs/.users_erased_v52';
             if (!file_exists($markerFile)) {
@@ -59,7 +71,7 @@ function getDb($readOnly = false) {
                     mkdir(dirname($markerFile), 0775, true);
                 }
                 touch($markerFile);
-                write_log('INFO', "One-time account erasure migration executed. Only 'sthor69' (if present) was preserved.");
+                write_log('INFO', "One-time account erasure migration executed. Only 'sthor69' was preserved.");
             }
         }
 
