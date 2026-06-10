@@ -1,5 +1,6 @@
 <?php
 require_once 'logger.php';
+require_once 'db.php';
 session_start();
 if (!isset($_SESSION['username'])) {
     header('HTTP/1.1 401 Unauthorized');
@@ -8,14 +9,6 @@ if (!isset($_SESSION['username'])) {
 }
 
 date_default_timezone_set('Europe/Rome');
-$dbPath = '/var/www/smarthome/sensor_data.db';
-
-if (!file_exists($dbPath)) {
-    write_log('ERROR', "Database not found at $dbPath");
-    header('HTTP/1.1 500 Internal Server Error');
-    echo "Errore: Database non trovato";
-    exit;
-}
 
 function solvePolynomialRegression($data, $degree, $lambda = 0) {
     $validData = array_filter($data, function($p) { return $p['y'] !== null; });
@@ -113,8 +106,7 @@ function solvePolynomialRegression($data, $degree, $lambda = 0) {
 }
 
 try {
-    $db = new PDO("sqlite:$dbPath");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $db = getDb();
 
     $hours = isset($_GET['hours']) ? intval($_GET['hours']) : 0;
     $start = $_GET['start'] ?? null;
