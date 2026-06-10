@@ -1,52 +1,8 @@
 <?php
 require_once 'logger.php';
+require_once 'db.php';
 session_start();
 header('Content-Type: application/json');
-
-$dbPath = '/var/www/smarthome/sensor_data.db';
-
-function getDb() {
-    global $dbPath;
-    try {
-        $db = new PDO("sqlite:$dbPath");
-        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        // Ensure table exists
-        $db->exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password_hash TEXT)");
-
-        // Migration: add missing columns
-        $columns = $db->query("PRAGMA table_info(users)")->fetchAll(PDO::FETCH_ASSOC);
-        $columnNames = array_column($columns, 'name');
-
-        if (!in_array('email', $columnNames)) {
-            $db->exec("ALTER TABLE users ADD COLUMN email TEXT");
-        }
-        if (!in_array('confirmation_token', $columnNames)) {
-            $db->exec("ALTER TABLE users ADD COLUMN confirmation_token TEXT");
-        }
-        if (!in_array('is_confirmed', $columnNames)) {
-            $db->exec("ALTER TABLE users ADD COLUMN is_confirmed INTEGER DEFAULT 0");
-            // Set existing users to confirmed to avoid lockout
-            $db->exec("UPDATE users SET is_confirmed = 1");
-        }
-
-        // Migration: one-time account erasure for Issue #52
-        $markerFile = dirname($dbPath) . '/logs/.users_erased_v52';
-        if (!file_exists($markerFile)) {
-            $db->exec("DELETE FROM users WHERE username != 'sthor69'");
-            if (!is_dir(dirname($markerFile))) {
-                mkdir(dirname($markerFile), 0775, true);
-            }
-            touch($markerFile);
-            write_log('INFO', "One-time account erasure migration executed. Only 'sthor69' (if present) was preserved.");
-        }
-
-        return $db;
-    } catch (PDOException $e) {
-        write_log('ERROR', "Database error: " . $e->getMessage());
-        echo json_encode(['success' => false, 'error' => 'Errore database: ' . $e->getMessage()]);
-        exit;
-    }
-}
 
 $action = $_GET['action'] ?? '';
 
