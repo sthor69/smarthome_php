@@ -17,7 +17,7 @@ RECONNECT_DELAY = 10  # secondi tra un tentativo di riconnessione e il prossimo
 ADDRESS_CACHE_FILE = os.path.join(os.path.dirname(__file__), ".last_ble_address")
 
 # --- Logging ---
-LOG_FILE = os.path.join(os.path.dirname(__file__), "logs", "website..log")
+LOG_FILE = os.path.join(os.path.dirname(__file__), "logs", "website.log")
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
 log_formatter = logging.Formatter(

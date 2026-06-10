@@ -1,4 +1,0 @@
-2026-06-10 07:24:33 [INFO] [run_data_test.php] Fetching all data for user 'testuser' (sampling: 1)
-2026-06-10 08:00:27 [ERROR] [verify_db.php] Database error: SQLSTATE[HY000] [14] unable to open database file
-2026-06-10 08:01:14 [INFO] [verify_db.php] One-time account erasure migration executed. Only 'sthor69' (if present) was preserved.
-2026-06-10 08:02:44 [INFO] [test_data.php] Fetching data for last 1 hours for user 'testuser' (sampling: 1)
