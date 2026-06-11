@@ -15,7 +15,7 @@ UART_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 
 DB_PATH = "/var/www/smarthome/sensor_data.db"
 if not os.path.exists(os.path.dirname(DB_PATH)):
-    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "var/www/smarthome/sensor_data.db")
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sensor_data.db")
 
 RECONNECT_DELAY = 10  # secondi tra un tentativo di riconnessione e il prossimo
 ADDRESS_CACHE_FILE = os.path.join(os.path.dirname(__file__), ".last_ble_address")
