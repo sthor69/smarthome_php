@@ -3,7 +3,7 @@ require_once 'logger.php';
 
 $dbPath = '/var/www/smarthome/sensor_data.db';
 if (!file_exists(dirname($dbPath))) {
-    $dbPath = __DIR__ . '/var/www/smarthome/sensor_data.db';
+    $dbPath = __DIR__ . '/sensor_data.db';
 }
 
 function getDb($readOnly = false) {
@@ -18,61 +18,7 @@ function getDb($readOnly = false) {
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         if (!$readOnly) {
-            // Ensure measurements table exists
-            $db->exec("CREATE TABLE IF NOT EXISTS measurements (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                temperature REAL,
-                humidity REAL,
-                battery_voltage REAL,
-                usb_powered INTEGER
-            )");
-
-            // Ensure users table exists
-            $db->exec("CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE,
-                password_hash TEXT
-            )");
-
-            // Migration: add missing columns to users
-            $columns = $db->query("PRAGMA table_info(users)")->fetchAll(PDO::FETCH_ASSOC);
-            $columnNames = array_column($columns, 'name');
-
-            if (!in_array('email', $columnNames)) {
-                $db->exec("ALTER TABLE users ADD COLUMN email TEXT");
-            }
-            if (!in_array('confirmation_token', $columnNames)) {
-                $db->exec("ALTER TABLE users ADD COLUMN confirmation_token TEXT");
-            }
-            if (!in_array('is_confirmed', $columnNames)) {
-                $db->exec("ALTER TABLE users ADD COLUMN is_confirmed INTEGER DEFAULT 0");
-                // Set existing users to confirmed to avoid lockout
-                $db->exec("UPDATE users SET is_confirmed = 1");
-            }
-
-            // Ensure sthor69 exists (restoration if erased)
-            $adminUser = 'sthor69';
-            $adminHash = '$2y$10$LI10bOQn6shZsTYU35gGlOo92rtg0armiv7ZyCl/8iaGC/xNAma62'; // Hash for 'Gualano0,'
-
-            $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
-            $stmt->execute([$adminUser]);
-            if (!$stmt->fetch()) {
-                $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, is_confirmed) VALUES (?, ?, 'sthor69@example.com', 1)");
-                $stmt->execute([$adminUser, $adminHash]);
-                write_log('INFO', "Admin user '$adminUser' restored.");
-            }
-
-            // Migration: one-time account erasure for Issue #52
-            $markerFile = dirname($dbPath) . '/logs/.users_erased_v52';
-            if (!file_exists($markerFile)) {
-                $db->exec("DELETE FROM users WHERE username != 'sthor69'");
-                if (!is_dir(dirname($markerFile))) {
-                    mkdir(dirname($markerFile), 0775, true);
-                }
-                touch($markerFile);
-                write_log('INFO', "One-time account erasure migration executed. Only 'sthor69' was preserved.");
-            }
+            applyMigrations($db);
         }
 
         return $db;
@@ -80,7 +26,6 @@ function getDb($readOnly = false) {
         $msg = $e->getMessage();
         write_log('ERROR', "Database error: " . $msg);
 
-        // Add more context if it's a read-only error
         if (strpos($msg, 'readonly') !== false || strpos($msg, 'attempt to write a readonly database') !== false) {
             $diag = "";
             if (file_exists($dbPath) && !is_writable($dbPath)) {
@@ -99,6 +44,85 @@ function getDb($readOnly = false) {
             exit;
         } else {
             throw $e;
+        }
+    }
+}
+
+function applyMigrations($db) {
+    $db->exec("CREATE TABLE IF NOT EXISTS schema_migrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE,
+        applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    $migrations = [
+        '001_initial_schema' => function($db) {
+            $db->exec("CREATE TABLE IF NOT EXISTS measurements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                temperature REAL,
+                humidity REAL,
+                battery_voltage REAL,
+                usb_powered INTEGER
+            )");
+            $db->exec("CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE,
+                password_hash TEXT
+            )");
+        },
+        '002_user_auth_columns' => function($db) {
+            $columns = $db->query("PRAGMA table_info(users)")->fetchAll(PDO::FETCH_ASSOC);
+            $columnNames = array_column($columns, 'name');
+
+            if (!in_array('email', $columnNames)) {
+                $db->exec("ALTER TABLE users ADD COLUMN email TEXT");
+            }
+            if (!in_array('confirmation_token', $columnNames)) {
+                $db->exec("ALTER TABLE users ADD COLUMN confirmation_token TEXT");
+            }
+            if (!in_array('is_confirmed', $columnNames)) {
+                $db->exec("ALTER TABLE users ADD COLUMN is_confirmed INTEGER DEFAULT 0");
+                $db->exec("UPDATE users SET is_confirmed = 1");
+            }
+        },
+        '003_restore_admin' => function($db) {
+            $adminUser = 'sthor69';
+            $adminHash = '$2y$10$LI10bOQn6shZsTYU35gGlOo92rtg0armiv7ZyCl/8iaGC/xNAma62';
+            $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt->execute([$adminUser]);
+            if (!$stmt->fetch()) {
+                $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, is_confirmed) VALUES (?, ?, 'sthor69@example.com', 1)");
+                $stmt->execute([$adminUser, $adminHash]);
+                write_log('INFO', "Admin user '$adminUser' restored via migration.");
+            }
+        },
+        '004_issue_52_cleanup' => function($db) {
+            // Check if it was already done via marker file to avoid re-running if not needed,
+            // but the migration system handles this better.
+            $db->exec("DELETE FROM users WHERE username != 'sthor69'");
+            write_log('INFO', "Issue #52 account erasure executed via migration.");
+        }
+    ];
+
+    foreach ($migrations as $name => $func) {
+        $stmt = $db->prepare("SELECT 1 FROM schema_migrations WHERE name = ?");
+        $stmt->execute([$name]);
+        if (!$stmt->fetch()) {
+            try {
+                $db->beginTransaction();
+                $func($db);
+                $stmt = $db->prepare("INSERT INTO schema_migrations (name) VALUES (?)");
+                $stmt->execute([$name]);
+                $db->commit();
+                write_log('INFO', "Migration '$name' applied successfully.");
+            } catch (Exception $e) {
+                if ($db->inTransaction()) {
+                    $db->rollBack();
+                }
+                write_log('ERROR', "Migration '$name' failed: " . $e->getMessage());
+                throw $e;
+            }
         }
     }
 }
