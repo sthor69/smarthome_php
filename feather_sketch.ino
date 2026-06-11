@@ -2,154 +2,133 @@
 #include <SPI.h>
 #include "Adafruit_BLE.h"
 #include "Adafruit_BluefruitLE_SPI.h"
-#include "Adafruit_BluefruitLE_UART.h"
+
 #include <DHT.h>
-
 #include "BluefruitConfig.h"
-
-#ifndef BLUEFRUIT_MODE_DATA
-#define BLUEFRUIT_MODE_DATA 0
-#endif
-
-#if SOFTWARE_SERIAL_AVAILABLE
-#include <SoftwareSerial.h>
-#endif
 
 /*=========================================================================
     APPLICATION SETTINGS
 ---------------------------------------------------------------------------*/
-#define DHTPIN 12      // What digital pin we're connected to
-#define DHTTYPE DHT22  // DHT 22 (AM2302), AM2321
-#define BLUEFRUIT_HWSERIAL_NAME Serial1
-#define BLUEFRUIT_UART_MODE_PIN -1  // Not used with SPI
+#define DHTPIN        12          // Pin dati DHT22
+#define DHTTYPE       DHT22       // DHT 22 (AM2302), AM2321
+#define VBATPIN       A9          // Partitore batteria sul Feather 32u4
+#define SEND_INTERVAL 10000UL     // ms tra una lettura/invio e l'altra
+#define DEVICE_NAME   "Adafruit Bluefruit LE"
 /*=========================================================================*/
 
-// Create the bluefruit object, either software serial...
-/*
-SoftwareSerial bluefruitSS = SoftwareSerial(BLUEFRUIT_SWUART_TXD_PIN, BLUEFRUIT_SWUART_RXD_PIN);
-
-Adafruit_BluefruitLE_UART ble(bluefruitSS, BLUEFRUIT_UART_MODE_PIN,
-                      BLUEFRUIT_UART_CTS_PIN, BLUEFRUIT_UART_RTS_PIN);
-*/
-
-/* ...or hardware serial, which does not need the RTS/CTS pins. SPI FLASH is used on the Feather 32u4 Bluefruit LE */
+// Bluefruit via SPI hardware (Feather 32u4 Bluefruit LE)
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 DHT dht(DHTPIN, DHTTYPE);
 
-// A small helper
-void error(const __FlashStringHelper* err) {
+bool wasConnected = false;
+unsigned long lastSend = 0;
+
+// Errore fatale: lampeggia il LED rosso invece di bloccarsi in silenzio
+void fatalError(const __FlashStringHelper* err) {
   Serial.println(err);
-  while (1)
-    ;
+  pinMode(LED_BUILTIN, OUTPUT);
+  while (1) {
+    digitalWrite(LED_BUILTIN, HIGH); delay(100);
+    digitalWrite(LED_BUILTIN, LOW);  delay(100);
+  }
 }
 
 void setup(void) {
-  while (!Serial)
-    ;  // required for flora & leonardo
-  delay(500);
-
+  // NIENTE "while (!Serial);" — bloccherebbe per sempre il boot
+  // quando il Feather è alimentato senza monitor seriale aperto.
   Serial.begin(115200);
-  Serial.println(F("Adafruit Bluefruit DHT22 Data Collector"));
-  Serial.println(F("---------------------------------------"));
+  delay(2000);  // tempo per aprire il monitor se collegato, poi si parte comunque
 
-  /* Initialise the module */
-  Serial.print(F("Initialising the Bluefruit LE module: "));
+  Serial.println(F("Feather DHT22 -> BLE UART"));
+  Serial.println(F("-------------------------"));
 
+  Serial.print(F("Init Bluefruit: "));
   if (!ble.begin(VERBOSE_MODE)) {
-    error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
+    fatalError(F("Bluefruit non trovato: verifica cablaggio/modalita'"));
   }
-  Serial.println(F("OK!"));
+  Serial.println(F("OK"));
 
-  /* Perform a factory reset to make sure everything is in a known state */
-  Serial.println(F("Performing a factory reset: "));
-  if (!ble.factoryReset()) {
-    Serial.println(F("Couldn't factory reset"));
-  }
+  // NIENTE factory reset ad ogni boot: cancella la configurazione e
+  // riavvia il modulo due volte, allungando i tempi e creando race
+  // con il collector che tenta di connettersi.
 
-  // Imposta il nome BLE
-  if (!ble.sendCommandCheckOK("AT+GAPDEVNAME=Adafruit Bluefruit LE")) {
-    Serial.println(F("Errore impostazione nome"));
-  }
-  // Salva in memoria
-  ble.sendCommandCheckOK("ATZ");
-  delay(1000);
-
-  /* Disable command echo from Bluefruit */
   ble.echo(false);
 
-  Serial.println("Requesting Bluefruit info:");
-  /* Print Bluefruit information */
+  // Il nome è salvato in NVM: impostarlo ad ogni boot è innocuo,
+  // ma non serve ATZ (il reset ritarderebbe solo l'advertising).
+  ble.sendCommandCheckOK("AT+GAPDEVNAME=" DEVICE_NAME);
+
   ble.info();
 
-  Serial.println(F("Please use Adafruit Bluefruit LE app to connect in UART mode"));
-  Serial.println(F("Then Enter characters to send to Bluefruit"));
-  Serial.println();
-
-  ble.verbose(true);  // debug info is a little annoying after this point!
-
-  /* Wait for connection */
-  Serial.println(F("Waiting fot connection with ..."));
-  while (!ble.isConnected()) {
-    delay(500);
+  // LED del modulo in modalita' MODE (se firmware >= 0.6.6)
+  if (ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION)) {
+    ble.sendCommandCheckOK("AT+HWMODELED=" MODE_LED_BEHAVIOUR);
   }
-  Serial.println(F("CONNECTED!!"));
 
-  // Switch to DATA mode to send raw UART data
+  ble.verbose(false);
+
+  // DATA mode subito, senza aspettare una connessione:
+  // setup() non deve MAI bloccarsi in attesa di un central.
   ble.setMode(BLUEFRUIT_MODE_DATA);
 
-  // LED Activity command is only supported from 0.6.6
-  if (ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION)) {
-    // Change Mode LED Activity
-    Serial.println(F("******************************"));
-    Serial.println(F("Change LED activity to " MODE_LED_BEHAVIOUR));
-    ble.sendCommandCheckOK("AT+HWMODELED=" MODE_LED_BEHAVIOUR);
-    Serial.println(F("******************************"));
-  }
-
   dht.begin();
+
+  Serial.println(F("In advertising. In attesa del collector..."));
 }
 
-bool wasConnected = false;
-
 void loop(void) {
-  // Check connection status
-  bool isConnected = ble.isConnected();
-  if (isConnected && !wasConnected) {
-    Serial.println(F("New connection detected! Ensuring DATA mode."));
-    ble.setMode(BLUEFRUIT_MODE_DATA);
-  }
-  wasConnected = isConnected;
-
-  if (!isConnected) {
-    Serial.println(F("Waiting for connection..."));
-    delay(2000);
+  // 1) Se nessuno e' connesso, non leggere e non trasmettere:
+  //    in DATA mode i print senza connessione vengono scartati.
+  if (!ble.isConnected()) {
+    if (wasConnected) {
+      Serial.println(F("Disconnesso. Torno in advertising..."));
+      wasConnected = false;
+    }
+    delay(1000);
     return;
   }
 
-  // Read temperature and humidity
+  if (!wasConnected) {
+    Serial.println(F("CONNESSO!"));
+    wasConnected = true;
+    lastSend = 0;  // invia subito la prima lettura
+  }
+
+  // 2) Cadenza di invio senza delay() lungo bloccante:
+  //    cosi' la perdita di connessione viene rilevata entro ~1s.
+  unsigned long now = millis();
+  if (lastSend != 0 && (now - lastSend) < SEND_INTERVAL) {
+    delay(200);
+    return;
+  }
+
+  // 3) Lettura sensore
   float h = dht.readHumidity();
   float t = dht.readTemperature();
 
-  // Check if any reads failed and exit early (to try again).
   if (isnan(h) || isnan(t)) {
-    Serial.println("Failed to read from DHT sensor!");
+    Serial.println(F("Lettura DHT fallita, riprovo..."));
     delay(2000);
     return;
   }
 
-  Serial.print("Humidity: ");
-  Serial.print(h);
-  Serial.print(" %\t");
-  Serial.print("Temperature: ");
-  Serial.print(t);
-  Serial.println(" *C");
+  // 4) Telemetria alimentazione
+  float vbat = analogRead(VBATPIN) * 2.0 * 3.3 / 1024.0;
+  bool isUSB = (USBSTA & (1 << VBUS));
 
-  // Send data over BLE UART
-  float vbat = analogRead(A9) * 2.0 * 3.3 / 1024.0; bool isUSB = (USBSTA & (1 << VBUS)); ble.print("T:");
-  ble.print(t);
-  ble.print(",H:"); ble.print(h); ble.print(",V:"); ble.print(vbat); ble.print(",USB:"); ble.println(isUSB); //
+  Serial.print(F("T=")); Serial.print(t);
+  Serial.print(F("C H=")); Serial.print(h);
+  Serial.print(F("% V=")); Serial.print(vbat);
+  Serial.print(F("V USB=")); Serial.println(isUSB);
 
-  // Wait 10 seconds before next reading
-  delay(10000);
+  // 5) Invio su BLE UART: una riga unica, terminata da \n,
+  //    nel formato atteso dalla regex di data_collector.py:
+  //    T:<f>,H:<f>,V:<f>,USB:<0|1>
+  ble.print(F("T:"));   ble.print(t);
+  ble.print(F(",H:"));  ble.print(h);
+  ble.print(F(",V:"));  ble.print(vbat);
+  ble.print(F(",USB:")); ble.println(isUSB ? 1 : 0);
+
+  lastSend = now;
 }
