@@ -3,7 +3,7 @@
 // These settings are used in both SW UART, HW UART and SPI mode
 // ----------------------------------------------------------------------------------------------
 #define BUFSIZE                        128   // Size of the read buffer for incoming data
-#define VERBOSE_MODE                   true  // If set to 'true' enables debug output
+#define VERBOSE_MODE                   false // If set to 'true' enables debug output
 
 
 // SOFTWARE UART SETTINGS
@@ -43,9 +43,9 @@
 // The following macros declare the pins to use for SW SPI communication.
 // This should be used with the Adafruit_BluefruitLE_SPI class.
 // ----------------------------------------------------------------------------------------------
-#define BLUEFRUIT_SPI_SCK              13
-#define BLUEFRUIT_SPI_MISO             12
-#define BLUEFRUIT_SPI_MOSI             11
+#define BLUEFRUIT_SPI_SCK              -1
+#define BLUEFRUIT_SPI_MISO             -1
+#define BLUEFRUIT_SPI_MOSI             -1
 
 #define MINIMUM_FIRMWARE_VERSION       "0.6.6"
 #define MODE_LED_BEHAVIOUR             "MODE"

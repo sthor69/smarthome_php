@@ -35,6 +35,8 @@ void fatalError(const __FlashStringHelper* err) {
 }
 
 void setup(void) {
+  dht.begin();
+
   // NIENTE "while (!Serial);" — bloccherebbe per sempre il boot
   // quando il Feather è alimentato senza monitor seriale aperto.
   Serial.begin(115200);
@@ -72,13 +74,21 @@ void setup(void) {
   // setup() non deve MAI bloccarsi in attesa di un central.
   ble.setMode(BLUEFRUIT_MODE_DATA);
 
-  dht.begin();
-
   Serial.println(F("In advertising. In attesa del collector..."));
 }
 
 void loop(void) {
-  // 1) Se nessuno e' connesso, non leggere e non trasmettere:
+  // 1) Cadenza di invio senza delay() lungo bloccante:
+  //    così la perdita di connessione viene rilevata entro ~1s.
+  //    Controlliamo il tempo PRIMA di interrogare il BLE o il sensore
+  //    per ridurre il traffico SPI superfluo.
+  unsigned long now = millis();
+  if (lastSend != 0 && (now - lastSend) < SEND_INTERVAL) {
+    delay(200);
+    return;
+  }
+
+  // 2) Se nessuno e' connesso, non leggere e non trasmettere:
   //    in DATA mode i print senza connessione vengono scartati.
   if (!ble.isConnected()) {
     if (wasConnected) {
@@ -93,17 +103,13 @@ void loop(void) {
     Serial.println(F("CONNESSO!"));
     wasConnected = true;
     lastSend = 0;  // invia subito la prima lettura
-  }
-
-  // 2) Cadenza di invio senza delay() lungo bloccante:
-  //    cosi' la perdita di connessione viene rilevata entro ~1s.
-  unsigned long now = millis();
-  if (lastSend != 0 && (now - lastSend) < SEND_INTERVAL) {
-    delay(200);
-    return;
+    // Piccola attesa dopo la connessione prima di stressare il bus
+    delay(100);
   }
 
   // 3) Lettura sensore
+  // Breve pausa per stabilizzare lo stato elettrico dopo BLE isConnected()
+  delay(100);
   float h = dht.readHumidity();
   float t = dht.readTemperature();
 
