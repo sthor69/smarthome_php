@@ -110,7 +110,23 @@ void setup(void) {
   dht.begin();
 }
 
+bool wasConnected = false;
+
 void loop(void) {
+  // Check connection status
+  bool isConnected = ble.isConnected();
+  if (isConnected && !wasConnected) {
+    Serial.println(F("New connection detected! Ensuring DATA mode."));
+    ble.setMode(BLUEFRUIT_MODE_DATA);
+  }
+  wasConnected = isConnected;
+
+  if (!isConnected) {
+    Serial.println(F("Waiting for connection..."));
+    delay(2000);
+    return;
+  }
+
   // Read temperature and humidity
   float h = dht.readHumidity();
   float t = dht.readTemperature();
