@@ -39,8 +39,22 @@ log.addHandler(console_handler)
 # --- Database ---
 def init_db():
     log.info(f"DB path: {DB_PATH}")
-    log.info(f"Directory esiste: {os.path.exists(os.path.dirname(DB_PATH))}")
-    log.info(f"Directory scrivibile: {os.access(os.path.dirname(DB_PATH), os.W_OK)}")
+    db_dir = os.path.dirname(DB_PATH)
+
+    # Tentativo creazione directory se manca
+    if not os.path.exists(db_dir):
+        try:
+            os.makedirs(db_dir, mode=0o775, exist_ok=True)
+            log.info(f"Directory creata: {db_dir}")
+        except Exception as e:
+            log.error(f"Errore creazione directory {db_dir}: {e}")
+
+    log.info(f"Directory esiste: {os.path.exists(db_dir)}")
+    log.info(f"Directory scrivibile: {os.access(db_dir, os.W_OK)}")
+
+    if os.path.exists(DB_PATH):
+        log.info(f"File DB esiste. Scrivibile: {os.access(DB_PATH, os.W_OK)}")
+
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()

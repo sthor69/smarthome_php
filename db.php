@@ -77,11 +77,25 @@ function getDb($readOnly = false) {
 
         return $db;
     } catch (PDOException $e) {
-        write_log('ERROR', "Database error: " . $e->getMessage());
+        $msg = $e->getMessage();
+        write_log('ERROR', "Database error: " . $msg);
+
+        // Add more context if it's a read-only error
+        if (strpos($msg, 'readonly') !== false || strpos($msg, 'attempt to write a readonly database') !== false) {
+            $diag = "";
+            if (file_exists($dbPath) && !is_writable($dbPath)) {
+                $diag .= " (File non scrivibile)";
+            }
+            if (!is_writable(dirname($dbPath))) {
+                $diag .= " (Directory non scrivibile)";
+            }
+            $msg .= $diag;
+        }
+
         if (php_sapi_name() !== 'cli') {
             header('Content-Type: application/json');
             http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Errore database: ' . $e->getMessage()]);
+            echo json_encode(['success' => false, 'error' => 'Errore database: ' . $msg]);
             exit;
         } else {
             throw $e;
