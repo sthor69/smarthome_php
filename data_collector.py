@@ -12,7 +12,11 @@ from bleak.exc import BleakError
 DEVICE_NAME = "Adafruit Bluefruit LE"
 DEVICE_ADDRESS = None  # oppure "XX:XX:XX:XX:XX:XX" per forzare MAC
 UART_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
+
 DB_PATH = "/var/www/smarthome/sensor_data.db"
+if not os.path.exists(os.path.dirname(DB_PATH)):
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "var/www/smarthome/sensor_data.db")
+
 RECONNECT_DELAY = 10  # secondi tra un tentativo di riconnessione e il prossimo
 ADDRESS_CACHE_FILE = os.path.join(os.path.dirname(__file__), ".last_ble_address")
 
@@ -167,28 +171,27 @@ async def find_device():
         return cached
 
     # 3. Scansione se non abbiamo un indirizzo noto
-    log.info(f"Ricerca per nome: '{DEVICE_NAME}'")
-    devices = await BleakScanner.discover(timeout=10)
-    log.info(f"Device trovati: {len(devices)}")
-    for d in devices:
-        log.info(f"  {d.address} | '{d.name}'")
+    for attempt in range(1, 4):
+        log.info(f"Ricerca per nome: '{DEVICE_NAME}' (Tentativo {attempt}/3)")
+        try:
+            devices = await BleakScanner.discover(timeout=10)
+            log.info(f"Device trovati: {len(devices)}")
+            for d in devices:
+                name = d.name if d.name else "Sconosciuto"
+                log.info(f"  {d.address} | '{name}'")
 
-    device = next((d for d in devices if d.name and DEVICE_NAME in d.name), None)
-    if device:
-        save_cached_address(device.address)
-        return device
+            device = next((d for d in devices if d.name and DEVICE_NAME in d.name), None)
+            if device:
+                log.info(f"Trovato: {device.address} ({device.name})")
+                save_cached_address(device.address)
+                return device
+        except Exception as e:
+            log.error(f"Errore durante la scansione (tentativo {attempt}): {e}")
+
+        if attempt < 3:
+            await asyncio.sleep(2)
 
     return None
-
-async def ensure_disconnected(device_or_address):
-    """Tenta di forzare la disconnessione di una sessione rimasta appesa."""
-    addr = device_or_address.address if hasattr(device_or_address, 'address') else device_or_address
-    log.info(f"Verifica sessioni appese per {addr}...")
-    try:
-        async with BleakClient(device_or_address, timeout=5.0) as client:
-            log.info(f"Connessione stabilita per pulizia, ora disconnetto...")
-    except Exception as e:
-        log.debug(f"Nessuna sessione appesa o errore durante pulizia (ignorabile): {e}")
 
 async def connect_and_listen(device):
     """Connette e rimane in ascolto. Lancia eccezione se la connessione cade."""
@@ -196,10 +199,13 @@ async def connect_and_listen(device):
     addr = device.address if hasattr(device, 'address') else device
     log.info(f"Connessione a {addr}...")
     async with BleakClient(device, timeout=20) as client:
-        log.info(f"Connesso!")
+        log.info(f"Connesso con successo a {addr}!")
         ble_buffer.clear()
+
+        log.info(f"Sottoscrizione alle notifiche per {UART_TX_CHAR_UUID}...")
         await client.start_notify(UART_TX_CHAR_UUID, notification_handler)
-        log.info("Notifiche attive. In ascolto...")
+        log.info("Sottoscrizione completata. In ascolto di dati UART...")
+
         # Rimane connesso finché non cade la connessione
         while client.is_connected:
             await asyncio.sleep(2.0)
@@ -230,9 +236,6 @@ async def run():
                 log.warning(f"Device '{DEVICE_NAME}' non trovato. Riprovo tra {RECONNECT_DELAY}s...")
                 await asyncio.sleep(RECONNECT_DELAY)
                 continue
-
-            # Tenta di pulire eventuali connessioni rimaste appese
-            await ensure_disconnected(device)
 
             await connect_and_listen(device)
 
