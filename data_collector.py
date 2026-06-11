@@ -120,20 +120,36 @@ def clear_cached_address():
             log.error(f"Errore rimozione cache indirizzo: {e}")
 
 # --- BLE ---
+ble_buffer = bytearray()
+
 def notification_handler(sender, data):
+    global ble_buffer
     try:
-        message = data.decode("utf-8").strip()
-        log.debug(f"BLE raw: '{message}'")
-        match = re.search(r"T:([-+]?\d*\.?\d+),H:([-+]?\d*\.?\d+),V:([-+]?\d*\.?\d+),USB:(\d+)", message)
-        if match:
-            temp = float(match.group(1))
-            hum = float(match.group(2))
-            vbat = float(match.group(3))
-            usb = int(match.group(4))
-            log.info(f"Ricevuto: T={temp:.1f}C  H={hum:.1f}% V={vbat:.2f}V USB={usb}")
-            store_data(temp, hum, vbat, usb)
-        else:
-            log.warning(f"Messaggio non riconosciuto: '{message}'")
+        ble_buffer.extend(data)
+        while b'\n' in ble_buffer:
+            idx = ble_buffer.find(b'\n')
+            line_bytes = ble_buffer[:idx]
+            ble_buffer = ble_buffer[idx+1:]
+
+            try:
+                message = line_bytes.decode("utf-8", errors="ignore").strip()
+                if not message:
+                    continue
+
+                log.info(f"BLE line: '{message}'")
+                match = re.search(r"T:([-+]?\d*\.?\d+),H:([-+]?\d*\.?\d+),V:([-+]?\d*\.?\d+),USB:(\d+)", message)
+                if match:
+                    temp = float(match.group(1))
+                    hum = float(match.group(2))
+                    vbat = float(match.group(3))
+                    usb = int(match.group(4))
+                    log.info(f"Ricevuto: T={temp:.1f}C  H={hum:.1f}% V={vbat:.2f}V USB={usb}")
+                    store_data(temp, hum, vbat, usb)
+                else:
+                    log.warning(f"Messaggio non riconosciuto: '{message}'")
+            except Exception as line_e:
+                log.error(f"Errore elaborazione riga BLE: {line_e}")
+
     except Exception as e:
         log.error(f"Errore parsing notifica: {e}")
 
@@ -176,10 +192,12 @@ async def ensure_disconnected(device_or_address):
 
 async def connect_and_listen(device):
     """Connette e rimane in ascolto. Lancia eccezione se la connessione cade."""
+    global ble_buffer
     addr = device.address if hasattr(device, 'address') else device
     log.info(f"Connessione a {addr}...")
     async with BleakClient(device, timeout=20) as client:
         log.info(f"Connesso!")
+        ble_buffer.clear()
         await client.start_notify(UART_TX_CHAR_UUID, notification_handler)
         log.info("Notifiche attive. In ascolto...")
         # Rimane connesso finché non cade la connessione
