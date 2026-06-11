@@ -7,6 +7,10 @@
 
 #include "BluefruitConfig.h"
 
+#ifndef BLUEFRUIT_MODE_DATA
+#define BLUEFRUIT_MODE_DATA 0
+#endif
+
 #if SOFTWARE_SERIAL_AVAILABLE
 #include <SoftwareSerial.h>
 #endif
@@ -91,6 +95,8 @@ void setup(void) {
   }
   Serial.println(F("CONNECTED!!"));
 
+  // Switch to DATA mode to send raw UART data
+  ble.setMode(BLUEFRUIT_MODE_DATA);
 
   // LED Activity command is only supported from 0.6.6
   if (ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION)) {
