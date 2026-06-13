@@ -384,32 +384,32 @@
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #edf2f7;">
         <h3 style="font-size: 1em; color: #2d3748; margin-bottom: 12px;">Impostazioni Email (SMTP)</h3>
         <div class="form-group">
-            <label for="smtp_host">Host SMTP</label>
-            <input type="text" id="smtp_host" placeholder="es. smtp.gmail.com">
+            <label for="cfg_smtp_host">Host SMTP</label>
+            <input type="text" id="cfg_smtp_host" placeholder="es. smtp.gmail.com" autocomplete="off">
         </div>
         <div class="form-group">
-            <label for="smtp_port">Porta SMTP</label>
-            <input type="number" id="smtp_port" placeholder="es. 587">
+            <label for="cfg_smtp_port">Porta SMTP</label>
+            <input type="number" id="cfg_smtp_port" placeholder="es. 587" autocomplete="off">
         </div>
         <div class="form-group">
-            <label for="smtp_secure">Sicurezza (tls/ssl/none)</label>
-            <input type="text" id="smtp_secure" placeholder="es. tls">
+            <label for="cfg_smtp_secure">Sicurezza (tls/ssl/none)</label>
+            <input type="text" id="cfg_smtp_secure" placeholder="es. tls" autocomplete="off">
         </div>
         <div class="form-group">
-            <label for="smtp_username">Username SMTP (Gmail Email)</label>
-            <input type="text" id="smtp_username" placeholder="latua@gmail.com" autocomplete="off">
+            <label for="cfg_smtp_username">Username SMTP (Gmail Email)</label>
+            <input type="text" id="cfg_smtp_username" placeholder="latua@gmail.com" autocomplete="new-password">
         </div>
         <div class="form-group">
-            <label for="smtp_password">Password SMTP (App Password)</label>
-            <input type="password" id="smtp_password" autocomplete="new-password">
+            <label for="cfg_smtp_password">Password SMTP (App Password)</label>
+            <input type="password" id="cfg_smtp_password" autocomplete="new-password">
         </div>
         <div class="form-group">
-            <label for="smtp_from_email">Email Mittente</label>
-            <input type="email" id="smtp_from_email" placeholder="latua@gmail.com" autocomplete="off">
+            <label for="cfg_smtp_from_email">Email Mittente</label>
+            <input type="email" id="cfg_smtp_from_email" placeholder="latua@gmail.com" autocomplete="off">
         </div>
         <div class="form-group">
-            <label for="smtp_from_name">Nome Mittente</label>
-            <input type="text" id="smtp_from_name" placeholder="SmartHome Monitor" autocomplete="off">
+            <label for="cfg_smtp_from_name">Nome Mittente</label>
+            <input type="text" id="cfg_smtp_from_name" placeholder="SmartHome Monitor" autocomplete="off">
         </div>
         <div class="modal-footer">
             <button class="btn-cancel" onclick="closeConfig()">Annulla</button>
@@ -419,12 +419,15 @@
 </div>
 
 <script>
+    let loggedInUser = '';
     // Verifica autenticazione
     fetch('auth.php?action=status')
         .then(r => r.json())
         .then(data => {
             if (!data.logged_in) {
                 window.location.href = 'login.html';
+            } else {
+                loggedInUser = data.username;
             }
         })
         .catch(() => { window.location.href = 'login.html'; });
@@ -500,8 +503,10 @@
             const r = await fetch('settings.php');
             const res = await r.json();
             if (res.success) {
+                // Mapping DB settings to UI fields. We use 'cfg_' prefix to avoid browser
+                // autofill heuristics that often mistake SMTP fields for website login fields.
                 Object.entries(res.settings).forEach(([k, v]) => {
-                    const el = document.getElementById(k);
+                    const el = document.getElementById('cfg_' + k);
                     if (el) el.value = v;
                 });
             }
@@ -541,14 +546,30 @@
             return;
         }
 
+        const smtpUser = document.getElementById('cfg_smtp_username').value;
+
+        // Check if SMTP user is the same as the website login (common mistake reported by user)
+        if (smtpUser && loggedInUser && smtpUser === loggedInUser) {
+            if (!confirm(`ATTENZIONE: Lo username SMTP inserito ("${smtpUser}") è identico al tuo username di accesso al sito. \n\nPer i servizi come Gmail, lo username SMTP deve essere il tuo INDIRIZZO EMAIL COMPLETO (es. nome@gmail.com) e NON lo username del sito.\n\nVuoi confermare comunque questa impostazione?`)) {
+                return;
+            }
+        }
+
+        // Basic check: SMTP username should usually be an email address for Gmail
+        if (smtpUser && !smtpUser.includes('@')) {
+            if (!confirm(`Lo username SMTP "${smtpUser}" non sembra un indirizzo email (es. utente@gmail.com). Sei sicuro di voler procedere?`)) {
+                return;
+            }
+        }
+
         const smtpSettings = {
-            smtp_host: document.getElementById('smtp_host').value,
-            smtp_port: document.getElementById('smtp_port').value,
-            smtp_secure: document.getElementById('smtp_secure').value,
-            smtp_username: document.getElementById('smtp_username').value,
-            smtp_password: document.getElementById('smtp_password').value,
-            smtp_from_email: document.getElementById('smtp_from_email').value,
-            smtp_from_name: document.getElementById('smtp_from_name').value
+            smtp_host: document.getElementById('cfg_smtp_host').value,
+            smtp_port: document.getElementById('cfg_smtp_port').value,
+            smtp_secure: document.getElementById('cfg_smtp_secure').value,
+            smtp_username: smtpUser,
+            smtp_password: document.getElementById('cfg_smtp_password').value,
+            smtp_from_email: document.getElementById('cfg_smtp_from_email').value,
+            smtp_from_name: document.getElementById('cfg_smtp_from_name').value
         };
 
         try {

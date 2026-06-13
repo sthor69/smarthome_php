@@ -84,7 +84,9 @@ switch ($action) {
                 echo json_encode(['success' => true]);
             } catch (Exception $e) {
                 $db->rollBack();
-                write_log('ERROR', "Registration failed for '$regUsername' (SMTP User: {$settings['smtp_username']}): failed to send confirmation email. Mailer Error: {$mail->ErrorInfo}");
+                $smtpUserLog = $settings['smtp_username'] ?: 'NOT SET';
+                $smtpHostLog = $settings['smtp_host'] ?: 'NOT SET';
+                write_log('ERROR', "Registration failed for '$regUsername' (SMTP Host: $smtpHostLog, SMTP User: $smtpUserLog): failed to send confirmation email. Mailer Error: {$mail->ErrorInfo}");
                 echo json_encode(['success' => false, 'error' => 'Errore nell\'invio dell\'email di conferma. Riprova più tardi.']);
             }
         } catch (PDOException $e) {
