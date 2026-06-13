@@ -20,4 +20,5 @@ jobs:
             cd /home/sthor69/workspace/smarthome_php/
             git pull origin main
             sudo rsync -av --exclude='sensor_data.db' --exclude='.git/' --exclude='.github/' --exclude='var/' --exclude='logs/' . /var/www/smarthome/
-            
+            cd /var/www/smarthome
+            sudo ./fix_permissions.sh
