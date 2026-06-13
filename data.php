@@ -17,6 +17,7 @@ try {
     $hours = isset($_GET['hours']) ? intval($_GET['hours']) : 0;
     $start = $_GET['start'] ?? null;
     $end   = $_GET['end']   ?? null;
+    write_log('DEBUG', "Query params: hours=$hours, start=$start, end=$end");
 
     $count = 0;
     if ($start && $end) {
@@ -33,6 +34,7 @@ try {
     }
 
     $samplingRate = ($count > 1500) ? ceil($count / 1000) : 1;
+    write_log('DEBUG', "Stats: count=$count, samplingRate=$samplingRate");
 
     if ($start && $end) {
         write_log('INFO', "Fetching data between $start and $end for user '{$_SESSION['username']}' (sampling: $samplingRate)");

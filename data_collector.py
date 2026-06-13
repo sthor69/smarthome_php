@@ -36,9 +36,11 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(log_formatter)
 
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 log.addHandler(file_handler)
 log.addHandler(console_handler)
+
+logging.getLogger("bleak").setLevel(logging.DEBUG)
 
 # --- Database ---
 def init_db():
@@ -128,11 +130,13 @@ ble_buffer = bytearray()
 
 def notification_handler(sender, data):
     global ble_buffer
+    log.debug(f"Received BLE data chunk: {data.hex()}")
     try:
         ble_buffer.extend(data)
         while b'\n' in ble_buffer:
             idx = ble_buffer.find(b'\n')
             line_bytes = ble_buffer[:idx]
+            log.debug(f"Processing line from buffer: {line_bytes.hex()}")
             ble_buffer = ble_buffer[idx+1:]
 
             try:

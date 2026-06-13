@@ -15,6 +15,7 @@ function getDb($readOnly = false) {
         }
 
         $db = new PDO("sqlite:$dbPath", null, null, $options);
+        write_log('DEBUG', "PDO connection created for $dbPath");
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         if (!$readOnly) {
