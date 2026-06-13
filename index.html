@@ -219,8 +219,10 @@
             padding: 24px;
             border-radius: 12px;
             width: 90%;
-            max-width: 400px;
+            max-width: 500px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            max-height: 90vh;
+            overflow-y: auto;
         }
         .modal-header {
             margin-bottom: 20px;
@@ -379,6 +381,36 @@
             <input type="number" id="polyLambda" min="0" max="1" step="0.001">
             <small style="color: #718096; font-size: 0.8em;">Parametro per stabilizzare la curva (es. 0.01). Più è alto, più la curva è "rigida".</small>
         </div>
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #edf2f7;">
+        <h3 style="font-size: 1em; color: #2d3748; margin-bottom: 12px;">Impostazioni Email (SMTP)</h3>
+        <div class="form-group">
+            <label for="smtp_host">Host SMTP</label>
+            <input type="text" id="smtp_host" placeholder="es. smtp.gmail.com">
+        </div>
+        <div class="form-group">
+            <label for="smtp_port">Porta SMTP</label>
+            <input type="number" id="smtp_port" placeholder="es. 587">
+        </div>
+        <div class="form-group">
+            <label for="smtp_secure">Sicurezza (tls/ssl/none)</label>
+            <input type="text" id="smtp_secure" placeholder="es. tls">
+        </div>
+        <div class="form-group">
+            <label for="smtp_username">Username SMTP (Gmail Email)</label>
+            <input type="text" id="smtp_username" placeholder="latua@gmail.com">
+        </div>
+        <div class="form-group">
+            <label for="smtp_password">Password SMTP (App Password)</label>
+            <input type="password" id="smtp_password">
+        </div>
+        <div class="form-group">
+            <label for="smtp_from_email">Email Mittente</label>
+            <input type="email" id="smtp_from_email" placeholder="latua@gmail.com">
+        </div>
+        <div class="form-group">
+            <label for="smtp_from_name">Nome Mittente</label>
+            <input type="text" id="smtp_from_name" placeholder="SmartHome Monitor">
+        </div>
         <div class="modal-footer">
             <button class="btn-cancel" onclick="closeConfig()">Annulla</button>
             <button class="btn-save" onclick="saveSettings()">Salva</button>
@@ -452,7 +484,7 @@
 
     document.getElementById('enableInterpolation')?.addEventListener('change', togglePolyDegreeVisibility);
 
-    function openConfig() {
+    async function openConfig() {
         const rangeHours = getCurrentRangeHours();
         const maxDegree = getMaxPolyDegree(rangeHours);
         const polyInput = document.getElementById('polyDegree');
@@ -464,6 +496,17 @@
         }
         polyHelp.textContent = `Grado della curva di regressione polinomiale (max ${maxDegree} per l'intervallo attuale).`;
 
+        try {
+            const r = await fetch('settings.php');
+            const res = await r.json();
+            if (res.success) {
+                Object.entries(res.settings).forEach(([k, v]) => {
+                    const el = document.getElementById(k);
+                    if (el) el.value = v;
+                });
+            }
+        } catch(e) { console.error('Failed to load SMTP settings', e); }
+
         document.getElementById('configModal').style.display = 'flex';
     }
 
@@ -471,7 +514,7 @@
         document.getElementById('configModal').style.display = 'none';
     }
 
-    function saveSettings() {
+    async function saveSettings() {
         const threshold = parseInt(document.getElementById('discardThreshold').value);
         const windowSize = parseInt(document.getElementById('movingAverageWindow').value);
         const polyDeg = parseInt(document.getElementById('polyDegree').value);
@@ -495,6 +538,32 @@
         }
         if (enabled && (isNaN(polyLamb) || polyLamb < 0)) {
             alert('Inserisci un valore di regolarizzazione valido.');
+            return;
+        }
+
+        const smtpSettings = {
+            smtp_host: document.getElementById('smtp_host').value,
+            smtp_port: document.getElementById('smtp_port').value,
+            smtp_secure: document.getElementById('smtp_secure').value,
+            smtp_username: document.getElementById('smtp_username').value,
+            smtp_password: document.getElementById('smtp_password').value,
+            smtp_from_email: document.getElementById('smtp_from_email').value,
+            smtp_from_name: document.getElementById('smtp_from_name').value
+        };
+
+        try {
+            const r = await fetch('settings.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({settings: smtpSettings})
+            });
+            const res = await r.json();
+            if (!res.success) {
+                alert('Errore salvataggio SMTP: ' + res.error);
+                return;
+            }
+        } catch(e) {
+            alert('Errore di rete salvataggio SMTP.');
             return;
         }
 

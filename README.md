@@ -57,3 +57,15 @@ python3 data_collector.py
 
 ### 3. View the Dashboard
 Navigate to `http://<your-raspberry-pi-ip>/smarthome/index.html` in your web browser.
+
+### 4. Email Notifications (Gmail)
+To enable registration confirmation emails via Gmail:
+1.  Log in to the dashboard and open the **Configurazione** (⚙️) modal.
+2.  In the **Impostazioni Email (SMTP)** section, enter your Gmail address in **Username SMTP** and **Email Mittente**.
+3.  **Crucial**: Do not use your regular Gmail password. You must create a **Google App Password**:
+    - Go to your Google Account settings.
+    - Security -> 2-Step Verification -> App passwords.
+    - Select 'Other' and name it (e.g., 'SmartHome Monitor').
+    - Copy the 16-character code and paste it into the **Password SMTP** field in the dashboard.
+4.  Ensure **Host SMTP** is `smtp.gmail.com`, **Porta** is `587`, and **Sicurezza** is `tls`.
+5.  Click **Salva**.

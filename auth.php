@@ -1,6 +1,11 @@
 <?php
 require_once 'logger.php';
 require_once 'db.php';
+
+require 'vendor/autoload.php';
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 session_start();
 header('Content-Type: application/json');
 
@@ -38,22 +43,41 @@ switch ($action) {
             $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, confirmation_token) VALUES (?, ?, ?, ?)");
             $stmt->execute([$user, $hash, $email, $token]);
 
-            // Send confirmation email
+            // Get SMTP settings
+            $stmtS = $db->query("SELECT name, value FROM settings");
+            $settings = $stmtS->fetchAll(PDO::FETCH_KEY_PAIR);
+
+            // Send confirmation email via PHPMailer
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $confirmLink = "$protocol://$host" . dirname($_SERVER['PHP_SELF']) . "/auth.php?action=confirm&token=$token";
-            $subject = "Conferma la tua registrazione";
-            $message = "Ciao $user,\n\nGrazie per esserti registrato. Per favore conferma il tuo account cliccando sul link seguente:\n$confirmLink\n\nGrazie!";
-            $headers = "From: noreply@$host";
 
-            if (!mail($email, $subject, $message, $headers)) {
-                $db->rollBack();
-                write_log('ERROR', "Registration failed for '$user': failed to send confirmation email to '$email'");
-                echo json_encode(['success' => false, 'error' => 'Errore nell\'invio dell\'email di conferma. Riprova più tardi.']);
-            } else {
+            $mail = new PHPMailer(true);
+            try {
+                $mail->isSMTP();
+                $mail->Host       = $settings['smtp_host'];
+                $mail->SMTPAuth   = $settings['smtp_auth'] == '1';
+                $mail->Username   = $settings['smtp_username'];
+                $mail->Password   = $settings['smtp_password'];
+                $mail->SMTPSecure = $settings['smtp_secure'] === 'none' ? false : $settings['smtp_secure'];
+                $mail->Port       = $settings['smtp_port'];
+
+                $mail->setFrom($settings['smtp_from_email'], $settings['smtp_from_name']);
+                $mail->addAddress($email, $user);
+
+                $mail->isHTML(false);
+                $mail->Subject = "Conferma la tua registrazione";
+                $mail->Body    = "Ciao $user,\n\nGrazie per esserti registrato. Per favore conferma il tuo account cliccando sul link seguente:\n$confirmLink\n\nGrazie!";
+
+                $mail->send();
+
                 $db->commit();
                 write_log('INFO', "User registered successfully: '$user' ($email)");
                 echo json_encode(['success' => true]);
+            } catch (Exception $e) {
+                $db->rollBack();
+                write_log('ERROR', "Registration failed for '$user': failed to send confirmation email. Mailer Error: {$mail->ErrorInfo}");
+                echo json_encode(['success' => false, 'error' => 'Errore nell\'invio dell\'email di conferma. Riprova più tardi.']);
             }
         } catch (PDOException $e) {
             if ($db->inTransaction()) {
