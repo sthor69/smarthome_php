@@ -111,6 +111,7 @@ try {
     $hours = isset($_GET['hours']) ? intval($_GET['hours']) : 0;
     $start = $_GET['start'] ?? null;
     $end   = $_GET['end']   ?? null;
+    write_log('DEBUG', "Query params: hours=$hours, start=$start, end=$end");
 
     $discardThreshold = isset($_GET['discardThreshold']) ? floatval($_GET['discardThreshold']) : 10;
     $movingAverageWindow = isset($_GET['movingAverageWindow']) ? intval($_GET['movingAverageWindow']) : 5;
@@ -137,6 +138,7 @@ try {
     if ($start && $end && $count > 1500) {
         $samplingRate = ceil($count / 1000);
     }
+    write_log('DEBUG', "Stats: count=$count, samplingRate=$samplingRate");
 
     if ($start && $end) {
         write_log('INFO', "Exporting data between $start and $end for user '{$_SESSION['username']}' (sampling: $samplingRate)");
@@ -289,6 +291,8 @@ try {
         $modelTemp = solvePolynomialRegression($tempsForPoly, $polyDegree, $polyLambda);
         $modelHum = solvePolynomialRegression($humsForPoly, $polyDegree, $polyLambda);
     }
+
+    write_log('DEBUG', "Data counts: raw=" . count($rawData) . ", processed=" . count($processedData));
 
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=sensor_data.csv');

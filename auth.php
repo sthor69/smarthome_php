@@ -5,6 +5,7 @@ require_once 'db.php';
 require 'vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+use PHPMailer\PHPMailer\SMTP;
 
 session_start();
 header('Content-Type: application/json');
@@ -61,6 +62,10 @@ switch ($action) {
             $confirmLink = "$protocol://$host" . dirname($_SERVER['PHP_SELF']) . "/auth.php?action=confirm&token=$token";
 
             $mail = new PHPMailer(true);
+            $mail->SMTPDebug = SMTP::DEBUG_LOWLEVEL;
+            $mail->Debugoutput = function($str, $level) {
+                write_log('DEBUG-SMTP', trim($str));
+            };
             try {
                 $mail->isSMTP();
                 $mail->Host       = $settings['smtp_host'];

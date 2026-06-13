@@ -20,6 +20,7 @@ try {
         $settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         echo json_encode(['success' => true, 'settings' => $settings]);
     } elseif ($method === 'POST') {
+        write_log('DEBUG', "Raw settings POST: " . file_get_contents('php://input'));
         $data = json_decode(file_get_contents('php://input'), true);
         if (!$data || !isset($data['settings'])) {
             echo json_encode(['success' => false, 'error' => 'Dati non validi']);
