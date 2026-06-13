@@ -14,12 +14,12 @@ $action = $_GET['action'] ?? '';
 switch ($action) {
     case 'register':
         $data = json_decode(file_get_contents('php://input'), true);
-        $user = trim($data['username'] ?? '');
+        $regUsername = trim($data['username'] ?? '');
         $pass = $data['password'] ?? '';
         $email = trim($data['email'] ?? '');
 
-        if (empty($user) || empty($pass) || empty($email)) {
-            write_log('WARNING', "Registration failed: missing fields for user '$user'");
+        if (empty($regUsername) || empty($pass) || empty($email)) {
+            write_log('WARNING', "Registration failed: missing fields for user '$regUsername'");
             echo json_encode(['success' => false, 'error' => 'Username, password ed email richiesti']);
             break;
         }
@@ -41,11 +41,19 @@ switch ($action) {
             }
 
             $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, confirmation_token) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$user, $hash, $email, $token]);
+            $stmt->execute([$regUsername, $hash, $email, $token]);
 
             // Get SMTP settings
             $stmtS = $db->query("SELECT name, value FROM settings");
             $settings = $stmtS->fetchAll(PDO::FETCH_KEY_PAIR);
+
+            // Verify mandatory SMTP settings are present
+            if (empty($settings['smtp_host']) || empty($settings['smtp_username']) || empty($settings['smtp_password'])) {
+                $db->rollBack();
+                write_log('ERROR', "Registration failed for '$regUsername': SMTP not configured. Host: " . ($settings['smtp_host'] ?: 'MISSING') . ", User: " . ($settings['smtp_username'] ?: 'MISSING'));
+                echo json_encode(['success' => false, 'error' => 'Servizio email non configurato. Contatta l\'amministratore.']);
+                break;
+            }
 
             // Send confirmation email via PHPMailer
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
@@ -62,21 +70,21 @@ switch ($action) {
                 $mail->SMTPSecure = $settings['smtp_secure'] === 'none' ? false : $settings['smtp_secure'];
                 $mail->Port       = $settings['smtp_port'];
 
-                $mail->setFrom($settings['smtp_from_email'], $settings['smtp_from_name']);
-                $mail->addAddress($email, $user);
+                $mail->setFrom($settings['smtp_from_email'] ?: $settings['smtp_username'], $settings['smtp_from_name']);
+                $mail->addAddress($email, $regUsername);
 
                 $mail->isHTML(false);
                 $mail->Subject = "Conferma la tua registrazione";
-                $mail->Body    = "Ciao $user,\n\nGrazie per esserti registrato. Per favore conferma il tuo account cliccando sul link seguente:\n$confirmLink\n\nGrazie!";
+                $mail->Body    = "Ciao $regUsername,\n\nGrazie per esserti registrato. Per favore conferma il tuo account cliccando sul link seguente:\n$confirmLink\n\nGrazie!";
 
                 $mail->send();
 
                 $db->commit();
-                write_log('INFO', "User registered successfully: '$user' ($email)");
+                write_log('INFO', "User registered successfully: '$regUsername' ($email)");
                 echo json_encode(['success' => true]);
             } catch (Exception $e) {
                 $db->rollBack();
-                write_log('ERROR', "Registration failed for '$user': failed to send confirmation email. Mailer Error: {$mail->ErrorInfo}");
+                write_log('ERROR', "Registration failed for '$regUsername' (SMTP User: {$settings['smtp_username']}): failed to send confirmation email. Mailer Error: {$mail->ErrorInfo}");
                 echo json_encode(['success' => false, 'error' => 'Errore nell\'invio dell\'email di conferma. Riprova più tardi.']);
             }
         } catch (PDOException $e) {
@@ -84,10 +92,10 @@ switch ($action) {
                 $db->rollBack();
             }
             if ($e->getCode() == '23000') {
-                write_log('WARNING', "Registration failed: username '$user' already exists");
+                write_log('WARNING', "Registration failed: username '$regUsername' already exists");
                 echo json_encode(['success' => false, 'error' => 'Username già esistente']);
             } else {
-                write_log('ERROR', "Registration error for '$user': " . $e->getMessage());
+                write_log('ERROR', "Registration error for '$regUsername': " . $e->getMessage());
                 echo json_encode(['success' => false, 'error' => $e->getMessage()]);
             }
         }
