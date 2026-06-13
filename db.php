@@ -102,6 +102,28 @@ function applyMigrations($db) {
             // but the migration system handles this better.
             $db->exec("DELETE FROM users WHERE username != 'sthor69'");
             write_log('INFO', "Issue #52 account erasure executed via migration.");
+        },
+        '005_smtp_settings' => function($db) {
+            $db->exec("CREATE TABLE IF NOT EXISTS settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE,
+                value TEXT
+            )");
+            $defaults = [
+                'smtp_host' => 'smtp.gmail.com',
+                'smtp_port' => '587',
+                'smtp_auth' => '1',
+                'smtp_secure' => 'tls',
+                'smtp_username' => '',
+                'smtp_password' => '',
+                'smtp_from_email' => '',
+                'smtp_from_name' => 'SmartHome Monitor'
+            ];
+            $stmt = $db->prepare("INSERT OR IGNORE INTO settings (name, value) VALUES (?, ?)");
+            foreach ($defaults as $key => $value) {
+                $stmt->execute([$key, $value]);
+            }
+            write_log('INFO', "SMTP settings table created and seeded.");
         }
     ];
 
