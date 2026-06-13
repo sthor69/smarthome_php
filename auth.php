@@ -15,6 +15,9 @@ switch ($action) {
     case 'register':
         $data = json_decode(file_get_contents('php://input'), true);
         $regUsername = trim($data['username'] ?? '');
+        if (!empty($regUsername) && strpos($regUsername, '@') === false) {
+            $regUsername .= '@gmail.com';
+        }
         $pass = $data['password'] ?? '';
         $email = trim($data['email'] ?? '');
 
@@ -133,6 +136,9 @@ switch ($action) {
     case 'login':
         $data = json_decode(file_get_contents('php://input'), true);
         $user = trim($data['username'] ?? '');
+        if (!empty($user) && strpos($user, '@') === false) {
+            $user .= '@gmail.com';
+        }
         $pass = $data['password'] ?? '';
 
         $db = getDb();
