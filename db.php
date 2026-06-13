@@ -147,6 +147,25 @@ function applyMigrations($db) {
                 $stmt->execute([$oldAdmin]);
                 write_log('INFO', "Old admin user '$oldAdmin' removed as '$newAdmin' already exists.");
             }
+        },
+        '007_fix_admin_username' => function($db) {
+            $oldUsername = 'sthorass@gmail.com';
+            $newUsername = 'sthorass';
+
+            // 1. Rename the website user
+            $stmt = $db->prepare("UPDATE users SET username = ? WHERE username = ?");
+            $stmt->execute([$newUsername, $oldUsername]);
+
+            if ($stmt->rowCount() > 0) {
+                write_log('INFO', "Admin website username renamed from '$oldUsername' to '$newUsername'.");
+            }
+
+            // 2. Configure SMTP authentication user
+            $smtpUser = 'sthorass@gmail.com';
+            $stmt = $db->prepare("UPDATE settings SET value = ? WHERE name IN ('smtp_username', 'smtp_from_email')");
+            $stmt->execute([$smtpUser]);
+
+            write_log('INFO', "SMTP username and from_email configured to '$smtpUser'.");
         }
     ];
 
