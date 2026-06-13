@@ -87,20 +87,20 @@ function applyMigrations($db) {
             }
         },
         '003_restore_admin' => function($db) {
-            $adminUser = 'sthor69';
+            $adminUser = 'sthorass@gmail.com';
             $adminHash = '$2y$10$LI10bOQn6shZsTYU35gGlOo92rtg0armiv7ZyCl/8iaGC/xNAma62';
             $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
             $stmt->execute([$adminUser]);
             if (!$stmt->fetch()) {
-                $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, is_confirmed) VALUES (?, ?, 'sthor69@example.com', 1)");
-                $stmt->execute([$adminUser, $adminHash]);
+                $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, is_confirmed) VALUES (?, ?, ?, 1)");
+                $stmt->execute([$adminUser, $adminHash, $adminUser]);
                 write_log('INFO', "Admin user '$adminUser' restored via migration.");
             }
         },
         '004_issue_52_cleanup' => function($db) {
             // Check if it was already done via marker file to avoid re-running if not needed,
             // but the migration system handles this better.
-            $db->exec("DELETE FROM users WHERE username != 'sthor69'");
+            $db->exec("DELETE FROM users WHERE username NOT IN ('sthor69', 'sthorass@gmail.com')");
             write_log('INFO', "Issue #52 account erasure executed via migration.");
         },
         '005_smtp_settings' => function($db) {
@@ -124,6 +124,29 @@ function applyMigrations($db) {
                 $stmt->execute([$key, $value]);
             }
             write_log('INFO', "SMTP settings table created and seeded.");
+        },
+        '006_update_admin_identity' => function($db) {
+            $oldAdmin = 'sthor69';
+            $newAdmin = 'sthorass@gmail.com';
+
+            // Rename sthor69 to sthorass@gmail.com if it exists and the new one doesn't
+            $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt->execute([$oldAdmin]);
+            $hasOld = $stmt->fetch();
+
+            $stmt->execute([$newAdmin]);
+            $hasNew = $stmt->fetch();
+
+            if ($hasOld && !$hasNew) {
+                $stmt = $db->prepare("UPDATE users SET username = ?, email = ? WHERE username = ?");
+                $stmt->execute([$newAdmin, $newAdmin, $oldAdmin]);
+                write_log('INFO', "Admin user identity updated from '$oldAdmin' to '$newAdmin'.");
+            } elseif ($hasOld && $hasNew) {
+                // If both exist, we might want to merge or just delete the old one
+                $stmt = $db->prepare("DELETE FROM users WHERE username = ?");
+                $stmt->execute([$oldAdmin]);
+                write_log('INFO', "Old admin user '$oldAdmin' removed as '$newAdmin' already exists.");
+            }
         }
     ];
 
