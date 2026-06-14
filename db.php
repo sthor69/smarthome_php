@@ -199,11 +199,11 @@ function applyMigrations($db) {
             $columnNames = array_column($columns, 'name');
 
             if (!in_array('created_at', $columnNames)) {
-                $db->exec("ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+                $db->exec("ALTER TABLE users ADD COLUMN created_at DATETIME");
                 $db->exec("UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL");
             }
             if (!in_array('updated_at', $columnNames)) {
-                $db->exec("ALTER TABLE users ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+                $db->exec("ALTER TABLE users ADD COLUMN updated_at DATETIME");
                 $db->exec("UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL");
             }
             if (!in_array('registration_ip', $columnNames)) {
@@ -220,19 +220,22 @@ function applyMigrations($db) {
                 error_message TEXT
             )");
 
+            $db->exec("CREATE TRIGGER IF NOT EXISTS set_user_timestamps
+                       AFTER INSERT ON users
+                       FOR EACH ROW
+                       BEGIN
+                           UPDATE users SET created_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+                       END");
+
             $db->exec("CREATE TRIGGER IF NOT EXISTS update_user_timestamp
                        AFTER UPDATE ON users
                        FOR EACH ROW
+                       WHEN NEW.updated_at IS OLD.updated_at OR NEW.updated_at IS NULL
                        BEGIN
                            UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
                        END");
-            write_log('INFO', "User management columns, table and trigger created.");
+            write_log('INFO', "User management columns, table and triggers created.");
         },
-        '011_fix_user_timestamps' => function($db) {
-            $db->exec("UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL");
-            $db->exec("UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL");
-            write_log('INFO', "Existing user timestamps initialized.");
-        }
     ];
 
     foreach ($migrations as $name => $func) {
