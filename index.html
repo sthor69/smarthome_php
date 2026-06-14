@@ -328,6 +328,7 @@
         }
         .status-success { background: #c6f6d5; color: #22543d; }
         .status-failed { background: #fed7d7; color: #822727; }
+        .status-warning { background: #fefcbf; color: #744210; }
     </style>
 </head>
 <body>
@@ -760,7 +761,7 @@
                         <td>${u.created_at || '--'}</td>
                         <td>${u.updated_at || '--'}</td>
                         <td>${u.registration_ip || '--'}</td>
-                        <td><span class="status-badge ${u.is_confirmed ? 'status-success' : 'status-failed'}">${u.is_confirmed ? 'Confermato' : 'In attesa'}</span></td>
+                        <td><span class="status-badge ${u.is_confirmed ? 'status-success' : 'status-warning'}">${u.is_confirmed ? 'Confermato' : 'Non confermato'}</span></td>
                         <td>
                             ${u.username !== 'sthorass' ? `<button class="btn-delete" onclick="deleteUser(${u.id}, '${u.username}')">Elimina</button>` : ''}
                         </td>
@@ -809,7 +810,11 @@
                         <td>${a.username || '--'}</td>
                         <td>${a.email || '--'}</td>
                         <td>${a.ip_address}</td>
-                        <td><span class="status-badge ${a.status === 'SUCCESS' ? 'status-success' : 'status-failed'}">${a.status}</span></td>
+                        <td>
+                            <span class="status-badge ${a.status === 'SUCCESS' ? (a.is_confirmed ? 'status-success' : 'status-warning') : 'status-failed'}">
+                                ${a.status === 'SUCCESS' && !a.is_confirmed ? 'NOT CONFIRMED' : a.status}
+                            </span>
+                        </td>
                         <td>${a.error_message || '--'}</td>
                     `;
                     tbody.appendChild(tr);
