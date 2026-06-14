@@ -280,6 +280,90 @@
         }
         .btn-cancel:hover { background: #cbd5e0; }
 
+        /* Accordion Styles */
+        .accordion-header {
+            background-color: #edf2f7;
+            color: #4a5568;
+            cursor: pointer;
+            padding: 12px 16px;
+            width: 100%;
+            text-align: left;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            outline: none;
+            transition: 0.4s;
+            font-weight: bold;
+            margin-top: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .accordion-header:after {
+            content: '\02795'; /* Unicode plus sign */
+            font-size: 13px;
+            color: #718096;
+            margin-left: 5px;
+        }
+        .accordion-header.active {
+            background-color: #e2e8f0;
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+        }
+        .accordion-header.active:after {
+            content: "\2796"; /* Unicode minus sign */
+        }
+        .accordion-content {
+            padding: 16px;
+            display: none;
+            background-color: white;
+            overflow: hidden;
+            border: 1px solid #cbd5e0;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            margin-bottom: 8px;
+        }
+
+        /* Toggle Switch Styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #4299e1;
+        }
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
         /* Management Styles */
         .admin-table {
             width: 100%;
@@ -406,34 +490,48 @@
             <span>Configurazione Parametri</span>
             <span class="close-modal" onclick="closeConfig()">&times;</span>
         </div>
-        <div class="form-group">
-            <label for="discardThreshold">Soglia scarto errori (%)</label>
-            <input type="number" id="discardThreshold" min="0" max="100" step="1">
-            <small style="color: #718096; font-size: 0.8em;">Scarta valori che variano più di questo % rispetto al precedente.</small>
+        <!-- Graph settings -->
+        <button class="accordion-header" onclick="toggleAccordion(this)">Graph settings</button>
+        <div class="accordion-content">
+            <div class="form-group">
+                <label for="discardThreshold">Soglia scarto errori (%)</label>
+                <input type="number" id="discardThreshold" min="0" max="100" step="1">
+                <small style="color: #718096; font-size: 0.8em;">Scarta valori che variano più di questo % rispetto al precedente.</small>
+            </div>
+            <div class="form-group">
+                <label for="movingAverageWindow">Finestra Media Mobile (n. valori)</label>
+                <input type="number" id="movingAverageWindow" min="1" max="50" step="1">
+                <small style="color: #718096; font-size: 0.8em;">Numero di campioni per il calcolo della media mobile.</small>
+            </div>
         </div>
-        <div class="form-group">
-            <label for="movingAverageWindow">Finestra Media Mobile (n. valori)</label>
-            <input type="number" id="movingAverageWindow" min="1" max="50" step="1">
-            <small style="color: #718096; font-size: 0.8em;">Numero di campioni per il calcolo della media mobile.</small>
-        </div>
-        <div class="form-group">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="enableInterpolation" style="width: auto;">
-                Abilita Interpolazione Polinomiale
-            </label>
-        </div>
-        <div class="form-group" id="polyDegreeGroup">
-            <label for="polyDegree">Grado Polinomio</label>
-            <input type="number" id="polyDegree" min="1" max="20" step="1">
-            <small id="polyDegreeHelp" style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
 
-            <label for="polyLambda" style="margin-top: 12px;">Regolarizzazione (Lambda)</label>
-            <input type="number" id="polyLambda" min="0" max="1" step="0.001">
-            <small style="color: #718096; font-size: 0.8em;">Parametro per stabilizzare la curva (es. 0.01). Più è alto, più la curva è "rigida".</small>
+        <!-- Interpolation setting -->
+        <button class="accordion-header" onclick="toggleAccordion(this)">Interpolation setting</button>
+        <div class="accordion-content">
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between;">
+                <label style="margin-bottom: 0;">Abilita Interpolazione Polinomiale</label>
+                <label class="switch">
+                    <input type="checkbox" id="enableInterpolation">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div id="polyDegreeGroup" style="margin-top: 16px;">
+                <div class="form-group">
+                    <label for="polyDegree">Grado Polinomio</label>
+                    <input type="number" id="polyDegree" min="1" max="20" step="1">
+                    <small id="polyDegreeHelp" style="color: #718096; font-size: 0.8em;">Grado della curva di regressione polinomiale.</small>
+                </div>
+                <div class="form-group">
+                    <label for="polyLambda">Regolarizzazione (Lambda)</label>
+                    <input type="number" id="polyLambda" min="0" max="1" step="0.001">
+                    <small style="color: #718096; font-size: 0.8em;">Parametro per stabilizzare la curva (es. 0.01). Più è alto, più la curva è "rigida".</small>
+                </div>
+            </div>
         </div>
-        <div id="smtpConfigSection" style="display: none;">
-            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #edf2f7;">
-            <h3 style="font-size: 1em; color: #2d3748; margin-bottom: 12px;">Impostazioni Email (SMTP)</h3>
+
+        <!-- Email setting -->
+        <button id="smtpAccordionHeader" class="accordion-header" onclick="toggleAccordion(this)" style="display: none;">Email setting</button>
+        <div id="smtpAccordionContent" class="accordion-content">
             <div class="form-group">
                 <label for="cfg_smtp_host">Host SMTP</label>
                 <input type="text" id="cfg_smtp_host" placeholder="es. smtp.gmail.com" autocomplete="off">
@@ -557,6 +655,24 @@
             .then(() => { window.location.href = 'login.html'; });
     }
 
+    function toggleAccordion(element) {
+        const content = element.nextElementSibling;
+        const allHeaders = document.querySelectorAll('.accordion-header');
+        const allContents = document.querySelectorAll('.accordion-content');
+
+        const isActive = element.classList.contains('active');
+
+        // Close all
+        allHeaders.forEach(h => h.classList.remove('active'));
+        allContents.forEach(c => c.style.display = 'none');
+
+        // If it wasn't active, open it
+        if (!isActive) {
+            element.classList.add('active');
+            content.style.display = 'block';
+        }
+    }
+
     let sensorChart;
     let currentHours = 6;
     let config = {
@@ -626,9 +742,21 @@
             manageBtn.style.display = isAdmin ? 'block' : 'none';
         }
 
-        const smtpSection = document.getElementById('smtpConfigSection');
-        if (smtpSection) {
-            smtpSection.style.display = isAdmin ? 'block' : 'none';
+        const smtpHeader = document.getElementById('smtpAccordionHeader');
+        const smtpContent = document.getElementById('smtpAccordionContent');
+        if (smtpHeader) smtpHeader.style.display = isAdmin ? 'flex' : 'none';
+        if (!isAdmin && smtpContent) smtpContent.style.display = 'none';
+
+        // Expand first accordion by default
+        const firstHeader = document.querySelector('.accordion-header');
+        if (firstHeader) {
+            const allHeaders = document.querySelectorAll('.accordion-header');
+            const allContents = document.querySelectorAll('.accordion-content');
+            allHeaders.forEach(h => h.classList.remove('active'));
+            allContents.forEach(c => c.style.display = 'none');
+
+            firstHeader.classList.add('active');
+            firstHeader.nextElementSibling.style.display = 'block';
         }
 
         if (isAdmin) {
