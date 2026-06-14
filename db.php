@@ -167,6 +167,23 @@ function applyMigrations($db) {
             $stmt->execute([$smtpUser]);
 
             write_log('INFO', "SMTP username and from_email configured to '$smtpUser'.");
+        },
+        '008_reset_admin_credentials' => function($db) {
+            $username = 'sthorass';
+            $newHash = '$2y$10$T.ckQmlnn2P01oBT4vnNbuHbWaq50d17MWaAFkKv7.pfa0y08BcCG'; // pinopino
+            $email = 'sthorass@gmail.com';
+
+            $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt->execute([$username]);
+            if ($stmt->fetch()) {
+                $stmt = $db->prepare("UPDATE users SET password_hash = ?, is_confirmed = 1 WHERE username = ?");
+                $stmt->execute([$newHash, $username]);
+                write_log('INFO', "Admin password reset for '$username'.");
+            } else {
+                $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, is_confirmed) VALUES (?, ?, ?, 1)");
+                $stmt->execute([$username, $newHash, $email]);
+                write_log('INFO', "Admin user '$username' created during password reset migration.");
+            }
         }
     ];
 
