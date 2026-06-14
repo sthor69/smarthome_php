@@ -279,6 +279,55 @@
             cursor: pointer;
         }
         .btn-cancel:hover { background: #cbd5e0; }
+
+        /* Management Styles */
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.85em;
+        }
+        .admin-table th, .admin-table td {
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            text-align: left;
+        }
+        .admin-table th {
+            background-color: #f7fafc;
+            color: #4a5568;
+            font-weight: bold;
+        }
+        .admin-table tr:nth-child(even) { background-color: #f8fafc; }
+        .admin-table tr:hover { background-color: #edf2f7; }
+        .btn-delete {
+            padding: 4px 8px;
+            background: #e53e3e;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .btn-delete:hover { background: #c53030; }
+        .btn-attempts {
+            padding: 6px 12px;
+            background: #718096;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
+        .btn-attempts:hover { background: #4a5568; }
+        .status-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .status-success { background: #c6f6d5; color: #22543d; }
+        .status-failed { background: #fed7d7; color: #822727; }
     </style>
 </head>
 <body>
@@ -412,8 +461,71 @@
             <input type="text" id="cfg_smtp_from_name" placeholder="SmartHome Monitor" autocomplete="off">
         </div>
         <div class="modal-footer">
+            <button id="btnManageAccounts" class="btn-attempts" style="margin-top:0; margin-right:auto; display:none;" onclick="openAccountsModal()">Gestione Account</button>
             <button class="btn-cancel" onclick="closeConfig()">Annulla</button>
             <button class="btn-save" onclick="saveSettings()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Gestione Account -->
+<div id="accountsModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <span>Gestione Account</span>
+            <span class="close-modal" onclick="closeAccountsModal()">&times;</span>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Creato il</th>
+                        <th>Modificato il</th>
+                        <th>IP Reg</th>
+                        <th>Stato</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <!-- Popolato via JS -->
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-attempts" onclick="openAttemptsModal()">Visualizza Tentativi di Registrazione</button>
+            <button class="btn-cancel" onclick="closeAccountsModal()">Chiudi</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tentativi di Registrazione -->
+<div id="attemptsModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <span>Tentativi di Registrazione</span>
+            <span class="close-modal" onclick="closeAttemptsModal()">&times;</span>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Data e Ora</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>IP Address</th>
+                        <th>Stato</th>
+                        <th>Dettagli/Errore</th>
+                    </tr>
+                </thead>
+                <tbody id="attemptsTableBody">
+                    <!-- Popolato via JS -->
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeAttemptsModal()">Indietro</button>
         </div>
     </div>
 </div>
@@ -428,6 +540,11 @@
                 window.location.href = 'login.html';
             } else {
                 loggedInUser = data.username;
+                // Aggiorna visibilità pulsante gestione se già caricato
+                const manageBtn = document.getElementById('btnManageAccounts');
+                if (manageBtn) {
+                    manageBtn.style.display = loggedInUser === 'sthorass' ? 'block' : 'none';
+                }
             }
         })
         .catch(() => { window.location.href = 'login.html'; });
@@ -498,6 +615,11 @@
             polyInput.value = maxDegree;
         }
         polyHelp.textContent = `Grado della curva di regressione polinomiale (max ${maxDegree} per l'intervallo attuale).`;
+
+        const manageBtn = document.getElementById('btnManageAccounts');
+        if (manageBtn) {
+            manageBtn.style.display = loggedInUser === 'sthorass' ? 'block' : 'none';
+        }
 
         try {
             const r = await fetch('settings.php');
@@ -600,10 +722,96 @@
     }
 
     window.onclick = function(event) {
-        const modal = document.getElementById('configModal');
-        if (event.target == modal) {
+        const configModal = document.getElementById('configModal');
+        const accountsModal = document.getElementById('accountsModal');
+        const attemptsModal = document.getElementById('attemptsModal');
+        if (event.target == configModal) {
             closeConfig();
+        } else if (event.target == accountsModal) {
+            closeAccountsModal();
+        } else if (event.target == attemptsModal) {
+            closeAttemptsModal();
         }
+    }
+
+    async function openAccountsModal() {
+        try {
+            const r = await fetch('auth.php?action=list_users');
+            const res = await r.json();
+            if (res.success) {
+                const tbody = document.getElementById('usersTableBody');
+                tbody.innerHTML = '';
+                res.users.forEach(u => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${u.username}</td>
+                        <td>${u.email}</td>
+                        <td>${u.created_at || '--'}</td>
+                        <td>${u.updated_at || '--'}</td>
+                        <td>${u.registration_ip || '--'}</td>
+                        <td><span class="status-badge ${u.is_confirmed ? 'status-success' : 'status-failed'}">${u.is_confirmed ? 'Confermato' : 'In attesa'}</span></td>
+                        <td>
+                            ${u.username !== 'sthorass' ? `<button class="btn-delete" onclick="deleteUser(${u.id}, '${u.username}')">Elimina</button>` : ''}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                document.getElementById('accountsModal').style.display = 'flex';
+            } else {
+                alert('Errore: ' + res.error);
+            }
+        } catch (e) { alert('Errore caricamento utenti'); }
+    }
+
+    function closeAccountsModal() {
+        document.getElementById('accountsModal').style.display = 'none';
+    }
+
+    async function deleteUser(id, username) {
+        if (!confirm(`Sei sicuro di voler eliminare l'utente "${username}"?`)) return;
+        try {
+            const r = await fetch('auth.php?action=delete_user', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: id})
+            });
+            const res = await r.json();
+            if (res.success) {
+                openAccountsModal();
+            } else {
+                alert('Errore: ' + res.error);
+            }
+        } catch (e) { alert('Errore eliminazione utente'); }
+    }
+
+    async function openAttemptsModal() {
+        try {
+            const r = await fetch('auth.php?action=list_attempts');
+            const res = await r.json();
+            if (res.success) {
+                const tbody = document.getElementById('attemptsTableBody');
+                tbody.innerHTML = '';
+                res.attempts.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${a.timestamp}</td>
+                        <td>${a.username || '--'}</td>
+                        <td>${a.email || '--'}</td>
+                        <td>${a.ip_address}</td>
+                        <td><span class="status-badge ${a.status === 'SUCCESS' ? 'status-success' : 'status-failed'}">${a.status}</span></td>
+                        <td>${a.error_message || '--'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                document.getElementById('attemptsModal').style.display = 'flex';
+            } else {
+                alert('Errore: ' + res.error);
+            }
+        } catch (e) { alert('Errore caricamento tentativi'); }
+    }
+
+    function closeAttemptsModal() {
+        document.getElementById('attemptsModal').style.display = 'none';
     }
 
     loadConfig();

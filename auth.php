@@ -10,6 +10,16 @@ use PHPMailer\PHPMailer\SMTP;
 session_start();
 header('Content-Type: application/json');
 
+function isAdmin() {
+    return isset($_SESSION['username']) && $_SESSION['username'] === 'sthorass';
+}
+
+function logAttempt($db, $username, $email, $status, $error = null) {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $stmt = $db->prepare("INSERT INTO user_creation_attempts (username, email, ip_address, status, error_message) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$username, $email, $ip, $status, $error]);
+}
+
 $action = $_GET['action'] ?? '';
 
 switch ($action) {
@@ -19,13 +29,14 @@ switch ($action) {
         $pass = $data['password'] ?? '';
         $email = trim($data['email'] ?? '');
 
+        $db = getDb();
         if (empty($regUsername) || empty($pass) || empty($email)) {
+            logAttempt($db, $regUsername, $email, 'FAILED', 'Missing fields');
             write_log('WARNING', "Registration failed: missing fields for user '$regUsername'");
             echo json_encode(['success' => false, 'error' => 'Username, password ed email richiesti']);
             break;
         }
 
-        $db = getDb();
         $hash = password_hash($pass, PASSWORD_DEFAULT);
         $token = bin2hex(random_bytes(16));
         try {
@@ -36,13 +47,15 @@ switch ($action) {
             $stmt->execute([$email]);
             if ($stmt->fetch()) {
                 $db->rollBack();
+                logAttempt($db, $regUsername, $email, 'FAILED', 'Email already exists');
                 write_log('WARNING', "Registration failed: email '$email' already exists");
                 echo json_encode(['success' => false, 'error' => 'Email già registrata']);
                 break;
             }
 
-            $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, confirmation_token) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$regUsername, $hash, $email, $token]);
+            $regIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, confirmation_token, registration_ip) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$regUsername, $hash, $email, $token, $regIp]);
 
             // Get SMTP settings
             $stmtS = $db->query("SELECT name, value FROM settings");
@@ -88,12 +101,14 @@ switch ($action) {
                 $mail->send();
 
                 $db->commit();
+                logAttempt($db, $regUsername, $email, 'SUCCESS');
                 write_log('INFO', "User registered successfully: '$regUsername' ($email)");
                 echo json_encode(['success' => true]);
             } catch (Exception $e) {
                 $db->rollBack();
                 $smtpUserLog = $settings['smtp_username'] ?: 'NOT SET';
                 $smtpHostLog = $settings['smtp_host'] ?: 'NOT SET';
+                logAttempt($db, $regUsername, $email, 'FAILED', "SMTP Error: {$mail->ErrorInfo}");
                 write_log('ERROR', "Registration failed for '$regUsername' (SMTP Host: $smtpHostLog, SMTP User: $smtpUserLog): failed to send confirmation email. Mailer Error: {$mail->ErrorInfo}");
                 echo json_encode(['success' => false, 'error' => 'Errore nell\'invio dell\'email di conferma. Riprova più tardi.']);
             }
@@ -102,9 +117,11 @@ switch ($action) {
                 $db->rollBack();
             }
             if ($e->getCode() == '23000') {
+                logAttempt($db, $regUsername, $email, 'FAILED', 'Username already exists');
                 write_log('WARNING', "Registration failed: username '$regUsername' already exists");
                 echo json_encode(['success' => false, 'error' => 'Username già esistente']);
             } else {
+                logAttempt($db, $regUsername, $email, 'FAILED', $e->getMessage());
                 write_log('ERROR', "Registration error for '$regUsername': " . $e->getMessage());
                 echo json_encode(['success' => false, 'error' => $e->getMessage()]);
             }
@@ -182,6 +199,54 @@ switch ($action) {
         } else {
             echo json_encode(['logged_in' => false]);
         }
+        break;
+
+    case 'list_users':
+        if (!isAdmin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Accesso negato']);
+            break;
+        }
+        $db = getDb();
+        $stmt = $db->query("SELECT id, username, email, is_confirmed, created_at, updated_at, registration_ip FROM users ORDER BY created_at DESC");
+        echo json_encode(['success' => true, 'users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        break;
+
+    case 'delete_user':
+        if (!isAdmin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Accesso negato']);
+            break;
+        }
+        $data = json_decode(file_get_contents('php://input'), true);
+        $userId = $data['id'] ?? null;
+        if (!$userId) {
+            echo json_encode(['success' => false, 'error' => 'ID utente mancante']);
+            break;
+        }
+        $db = getDb();
+        // Check if it's the admin
+        $stmt = $db->prepare("SELECT username FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $u = $stmt->fetch();
+        if ($u && $u['username'] === 'sthorass') {
+            echo json_encode(['success' => false, 'error' => 'Non puoi eliminare l\'account amministratore']);
+            break;
+        }
+        $stmt = $db->prepare("DELETE FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        echo json_encode(['success' => true]);
+        break;
+
+    case 'list_attempts':
+        if (!isAdmin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Accesso negato']);
+            break;
+        }
+        $db = getDb();
+        $stmt = $db->query("SELECT * FROM user_creation_attempts ORDER BY timestamp DESC");
+        echo json_encode(['success' => true, 'attempts' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         break;
 
     default:

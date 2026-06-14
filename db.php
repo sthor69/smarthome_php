@@ -193,6 +193,45 @@ function applyMigrations($db) {
             // Update name if it's empty or null to ensure we have a display name
             $db->exec("UPDATE settings SET value = 'SmartHome Monitor' WHERE name = 'smtp_from_name' AND (value IS NULL OR value = '')");
             write_log('INFO', "SMTP sender settings ensured and defaults applied.");
+        },
+        '010_user_management' => function($db) {
+            $columns = $db->query("PRAGMA table_info(users)")->fetchAll(PDO::FETCH_ASSOC);
+            $columnNames = array_column($columns, 'name');
+
+            if (!in_array('created_at', $columnNames)) {
+                $db->exec("ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+                $db->exec("UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL");
+            }
+            if (!in_array('updated_at', $columnNames)) {
+                $db->exec("ALTER TABLE users ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+                $db->exec("UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL");
+            }
+            if (!in_array('registration_ip', $columnNames)) {
+                $db->exec("ALTER TABLE users ADD COLUMN registration_ip TEXT");
+            }
+
+            $db->exec("CREATE TABLE IF NOT EXISTS user_creation_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                username TEXT,
+                email TEXT,
+                ip_address TEXT,
+                status TEXT,
+                error_message TEXT
+            )");
+
+            $db->exec("CREATE TRIGGER IF NOT EXISTS update_user_timestamp
+                       AFTER UPDATE ON users
+                       FOR EACH ROW
+                       BEGIN
+                           UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+                       END");
+            write_log('INFO', "User management columns, table and trigger created.");
+        },
+        '011_fix_user_timestamps' => function($db) {
+            $db->exec("UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL");
+            $db->exec("UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL");
+            write_log('INFO', "Existing user timestamps initialized.");
         }
     ];
 
