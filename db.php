@@ -184,6 +184,15 @@ function applyMigrations($db) {
                 $stmt->execute([$username, $newHash, $email]);
                 write_log('INFO', "Admin user '$username' created during password reset migration.");
             }
+        },
+        '009_ensure_smtp_settings_completeness' => function($db) {
+            $stmt = $db->prepare("INSERT OR IGNORE INTO settings (name, value) VALUES (?, ?)");
+            $stmt->execute(['smtp_from_email', '']);
+            $stmt->execute(['smtp_from_name', 'SmartHome Monitor']);
+
+            // Update name if it's empty or null to ensure we have a display name
+            $db->exec("UPDATE settings SET value = 'SmartHome Monitor' WHERE name = 'smtp_from_name' AND (value IS NULL OR value = '')");
+            write_log('INFO', "SMTP sender settings ensured and defaults applied.");
         }
     ];
 

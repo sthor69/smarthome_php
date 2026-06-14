@@ -75,7 +75,10 @@ switch ($action) {
                 $mail->SMTPSecure = $settings['smtp_secure'] === 'none' ? false : $settings['smtp_secure'];
                 $mail->Port       = $settings['smtp_port'];
 
-                $mail->setFrom($settings['smtp_from_email'] ?: $settings['smtp_username'], $settings['smtp_from_name']);
+                $fromEmail = !empty($settings['smtp_from_email']) ? $settings['smtp_from_email'] : $settings['smtp_username'];
+                $fromName = !empty($settings['smtp_from_name']) ? $settings['smtp_from_name'] : 'SmartHome Monitor';
+                $mail->setFrom($fromEmail, $fromName);
+
                 $mail->addAddress($email, $regUsername);
 
                 $mail->isHTML(false);
