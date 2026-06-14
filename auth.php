@@ -53,6 +53,7 @@ switch ($action) {
                 break;
             }
 
+            // Record registration IP and user data
             $regIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, confirmation_token, registration_ip) VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$regUsername, $hash, $email, $token, $regIp]);
@@ -207,6 +208,7 @@ switch ($action) {
             echo json_encode(['success' => false, 'error' => 'Accesso negato']);
             break;
         }
+        write_log('INFO', "Admin '{$_SESSION['username']}' requested user list");
         $db = getDb();
         $stmt = $db->query("SELECT id, username, email, is_confirmed, created_at, updated_at, registration_ip FROM users ORDER BY created_at DESC");
         echo json_encode(['success' => true, 'users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
@@ -218,6 +220,7 @@ switch ($action) {
             echo json_encode(['success' => false, 'error' => 'Accesso negato']);
             break;
         }
+        write_log('INFO', "Admin '{$_SESSION['username']}' initiated user deletion");
         $data = json_decode(file_get_contents('php://input'), true);
         $userId = $data['id'] ?? null;
         if (!$userId) {
@@ -244,6 +247,7 @@ switch ($action) {
             echo json_encode(['success' => false, 'error' => 'Accesso negato']);
             break;
         }
+        write_log('INFO', "Admin '{$_SESSION['username']}' requested registration attempts list");
         $db = getDb();
         $stmt = $db->query("SELECT * FROM user_creation_attempts ORDER BY timestamp DESC");
         echo json_encode(['success' => true, 'attempts' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
