@@ -249,7 +249,7 @@ switch ($action) {
         }
         write_log('INFO', "Admin '{$_SESSION['username']}' requested registration attempts list");
         $db = getDb();
-        $stmt = $db->query("SELECT * FROM user_creation_attempts ORDER BY timestamp DESC");
+        $stmt = $db->query("SELECT a.*, u.is_confirmed FROM user_creation_attempts a LEFT JOIN users u ON a.username = u.username ORDER BY a.timestamp DESC");
         echo json_encode(['success' => true, 'attempts' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         break;
 
