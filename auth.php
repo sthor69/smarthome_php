@@ -214,6 +214,37 @@ switch ($action) {
         echo json_encode(['success' => true, 'users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         break;
 
+    case 'create_user':
+        if (!isAdmin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Accesso negato']);
+            break;
+        }
+        $data = json_decode(file_get_contents('php://input'), true);
+        $username = trim($data['username'] ?? '');
+        $email = trim($data['email'] ?? '');
+        $password = $data['password'] ?? '';
+        $isConfirmed = !empty($data['is_confirmed']) ? 1 : 0;
+
+        if (empty($username) || empty($email) || empty($password)) {
+            echo json_encode(['success' => false, 'error' => 'Campi obbligatori mancanti']);
+            break;
+        }
+
+        $hash = password_hash($password, PASSWORD_DEFAULT);
+        $db = getDb();
+        try {
+            // "admin" as registration_ip and NO logAttempt call as requested
+            $stmt = $db->prepare("INSERT INTO users (username, password_hash, email, is_confirmed, registration_ip) VALUES (?, ?, ?, ?, 'admin')");
+            $stmt->execute([$username, $hash, $email, $isConfirmed]);
+            write_log('INFO', "Admin '{$_SESSION['username']}' created new user '$username'");
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            write_log('ERROR', "Error creating user '$username': " . $e->getMessage());
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'delete_user':
         if (!isAdmin()) {
             http_response_code(403);

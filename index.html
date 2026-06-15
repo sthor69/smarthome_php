@@ -576,6 +576,35 @@
             <span>Gestione Account</span>
             <span class="close-modal" onclick="closeAccountsModal()">&times;</span>
         </div>
+
+        <div id="createUserForm" style="display: none; border: 1px solid #cbd5e0; padding: 16px; border-radius: 8px; margin-bottom: 20px; background: #f7fafc;">
+            <h3 style="margin-top: 0; font-size: 1em; color: #2d3748;">Nuovo Utente</h3>
+            <div class="form-group">
+                <label for="new_username">Username</label>
+                <input type="text" id="new_username" placeholder="Username" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="new_email">Email</label>
+                <input type="email" id="new_email" placeholder="Email" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="new_password">Password</label>
+                <input type="password" id="new_password" placeholder="Password" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label for="new_ip">Indirizzo IP</label>
+                <input type="text" id="new_ip" value="admin" readonly style="background: #e2e8f0; color: #4a5568; cursor: not-allowed;">
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                <label style="margin-bottom: 0;">Confermato</label>
+                <input type="checkbox" id="new_is_confirmed" style="width: auto;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button class="btn-cancel" style="padding: 6px 16px;" onclick="toggleCreateUserForm()">Annulla</button>
+                <button class="btn-save" style="padding: 6px 16px;" onclick="createUser()">Crea Utente</button>
+            </div>
+        </div>
+
         <div style="overflow-x: auto;">
             <table class="admin-table">
                 <thead>
@@ -595,6 +624,7 @@
             </table>
         </div>
         <div class="modal-footer">
+            <button class="btn-attempts" style="margin-right: auto; background-color: #48bb78;" onclick="toggleCreateUserForm()">+ Aggiungi Utente</button>
             <button class="btn-attempts" onclick="openAttemptsModal()">Visualizza Tentativi di Registrazione</button>
             <button class="btn-cancel" onclick="closeAccountsModal()">Chiudi</button>
         </div>
@@ -905,6 +935,50 @@
 
     function closeAccountsModal() {
         document.getElementById('accountsModal').style.display = 'none';
+        // Reset form when closing
+        document.getElementById('createUserForm').style.display = 'none';
+    }
+
+    function toggleCreateUserForm() {
+        const form = document.getElementById('createUserForm');
+        if (form.style.display === 'none') {
+            form.style.display = 'block';
+            document.getElementById('new_username').value = '';
+            document.getElementById('new_email').value = '';
+            document.getElementById('new_password').value = '';
+            document.getElementById('new_is_confirmed').checked = true;
+        } else {
+            form.style.display = 'none';
+        }
+    }
+
+    async function createUser() {
+        const username = document.getElementById('new_username').value;
+        const email = document.getElementById('new_email').value;
+        const password = document.getElementById('new_password').value;
+        const is_confirmed = document.getElementById('new_is_confirmed').checked;
+
+        if (!username || !email || !password) {
+            alert('Per favore compila tutti i campi obbligatori.');
+            return;
+        }
+
+        try {
+            const r = await fetch('auth.php?action=create_user', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username, email, password, is_confirmed
+                })
+            });
+            const res = await r.json();
+            if (res.success) {
+                toggleCreateUserForm();
+                openAccountsModal(); // Refresh list
+            } else {
+                alert('Errore creazione utente: ' + res.error);
+            }
+        } catch (e) { alert('Errore di rete creazione utente.'); }
     }
 
     async function deleteUser(id, username) {
