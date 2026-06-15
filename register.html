@@ -44,6 +44,26 @@
             border-radius: 6px;
             box-sizing: border-box;
         }
+        .password-container {
+            position: relative;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #718096;
+            user-select: none;
+        }
+        .password-rules {
+            color: #e53e3e;
+            font-size: 0.75em;
+            margin-top: 4px;
+        }
+        .input-default {
+            color: #a0aec0;
+        }
         button {
             width: 100%;
             padding: 12px;
@@ -100,7 +120,13 @@
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" required>
+                <div class="password-container">
+                    <input type="password" id="password" class="input-default">
+                    <span id="togglePassword" class="password-toggle">👁️</span>
+                </div>
+                <div class="password-rules">
+                    Minimo 8 caratteri, una maiuscola, un numero e un simbolo tra: , . ? ! % $ #
+                </div>
             </div>
             <button type="submit">Registrati</button>
         </form>
@@ -110,16 +136,85 @@
     </div>
 
     <script>
+        const passwordInput = document.getElementById('password');
+        const togglePassword = document.getElementById('togglePassword');
+        let defaultPassword = '';
+        let isDefaultUsed = true;
+
+        function generatePassword() {
+            const uppers = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            const numbers = '23456789';
+            const symbols = ',.?!%$#';
+            const all = 'abcdefghijkmnopqrstuvwxyz' + uppers + numbers + symbols;
+
+            let password = '';
+            password += uppers.charAt(Math.floor(Math.random() * uppers.length));
+            password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+            password += symbols.charAt(Math.floor(Math.random() * symbols.length));
+
+            for (let i = 0; i < 5; i++) {
+                password += all.charAt(Math.floor(Math.random() * all.length));
+            }
+
+            return password.split('').sort(() => 0.5 - Math.random()).join('');
+        }
+
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        function validatePassword(pass) {
+            if (pass.length < 8) return false;
+            if (!/[A-Z]/.test(pass)) return false;
+            if (!/[0-9]/.test(pass)) return false;
+            if (!/[,.?!%$#]/.test(pass)) return false;
+            return true;
+        }
+
+        // Initialize default password
+        defaultPassword = generatePassword();
+        passwordInput.value = defaultPassword;
+        passwordInput.type = 'text'; // Show it initially as it is a "system generated" one in grey
+        togglePassword.textContent = '🙈';
+
+        passwordInput.addEventListener('keydown', function(e) {
+            if (isDefaultUsed) {
+                passwordInput.value = '';
+                passwordInput.classList.remove('input-default');
+                passwordInput.type = 'password';
+                isDefaultUsed = false;
+            }
+        });
+
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.textContent = type === 'password' ? '👁️' : '🙈';
+        });
+
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const user = document.getElementById('username').value;
             const email = document.getElementById('email').value;
-            const pass = document.getElementById('password').value;
+            let pass = passwordInput.value;
             const errorEl = document.getElementById('errorMessage');
             const successEl = document.getElementById('successMessage');
 
             errorEl.style.display = 'none';
             successEl.style.display = 'none';
+
+            if (!validateEmail(email)) {
+                errorEl.textContent = 'Formato email non valido (es. xxxx@yyyy.zz)';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (!validatePassword(pass)) {
+                errorEl.textContent = 'La password non rispetta i requisiti di complessità';
+                errorEl.style.display = 'block';
+                return;
+            }
 
             fetch('auth.php?action=register', {
                 method: 'POST',

@@ -1,19 +1,28 @@
-[Mon Jun 15 10:29:08 2026] PHP 8.3.6 Development Server (http://localhost:8080) started
-[Mon Jun 15 10:29:47 2026] [::1]:53864 Accepted
-[Mon Jun 15 10:29:47 2026] [::1]:53864 [200]: GET /bypass_login.php
-[Mon Jun 15 10:29:47 2026] [::1]:53864 Closing
-[Mon Jun 15 10:29:47 2026] [::1]:53872 Accepted
-[Mon Jun 15 10:29:47 2026] [::1]:53872 [200]: GET /index.html
-[Mon Jun 15 10:29:47 2026] [::1]:53872 Closing
-[Mon Jun 15 10:29:48 2026] [::1]:53886 Accepted
-[Mon Jun 15 10:29:48 2026] [::1]:53886 [200]: GET /auth.php?action=status
-[Mon Jun 15 10:29:48 2026] [::1]:53886 Closing
-[Mon Jun 15 10:29:48 2026] [::1]:53900 Accepted
-[Mon Jun 15 10:29:48 2026] [::1]:53900 [200]: GET /data.php?hours=6
-[Mon Jun 15 10:29:48 2026] [::1]:53900 Closing
-[Mon Jun 15 10:29:48 2026] [::1]:53916 Accepted
-[Mon Jun 15 10:29:48 2026] [::1]:53916 [200]: GET /settings.php
-[Mon Jun 15 10:29:48 2026] [::1]:53916 Closing
-[Mon Jun 15 10:29:48 2026] [::1]:53932 Accepted
-[Mon Jun 15 10:29:48 2026] [::1]:53932 [200]: GET /auth.php?action=list_users
-[Mon Jun 15 10:29:48 2026] [::1]:53932 Closing
+[Mon Jun 15 10:55:23 2026] PHP 8.3.6 Development Server (http://localhost:8080) started
+[Mon Jun 15 10:56:18 2026] [::1]:35094 Accepted
+[Mon Jun 15 10:56:18 2026] [::1]:35094 [200]: GET /register.html
+[Mon Jun 15 10:56:18 2026] [::1]:35094 Closing
+[Mon Jun 15 10:56:50 2026] [::1]:53150 Accepted
+[Mon Jun 15 10:56:50 2026] [::1]:53150 [200]: GET /login.html
+[Mon Jun 15 10:56:50 2026] [::1]:53150 Closing
+[Mon Jun 15 10:56:52 2026] [::1]:53164 Accepted
+[Mon Jun 15 10:56:52 2026] [::1]:53164 [200]: GET /login.html
+[Mon Jun 15 10:56:52 2026] [::1]:53164 Closing
+[Mon Jun 15 10:56:52 2026] [::1]:53176 Accepted
+[Mon Jun 15 10:56:52 2026] [::1]:53176 [200]: POST /auth.php?action=login
+[Mon Jun 15 10:56:52 2026] [::1]:53176 Closing
+[Mon Jun 15 10:56:52 2026] [::1]:53178 Accepted
+[Mon Jun 15 10:56:52 2026] [::1]:53178 [200]: GET /index.html
+[Mon Jun 15 10:56:52 2026] [::1]:53178 Closing
+[Mon Jun 15 10:56:53 2026] [::1]:53194 Accepted
+[Mon Jun 15 10:56:53 2026] [::1]:53194 [200]: GET /auth.php?action=status
+[Mon Jun 15 10:56:53 2026] [::1]:53194 Closing
+[Mon Jun 15 10:56:53 2026] [::1]:53206 Accepted
+[Mon Jun 15 10:56:53 2026] [::1]:53206 [200]: GET /data.php?hours=6
+[Mon Jun 15 10:56:53 2026] [::1]:53206 Closing
+[Mon Jun 15 10:56:54 2026] [::1]:53222 Accepted
+[Mon Jun 15 10:56:54 2026] [::1]:53222 [200]: GET /settings.php
+[Mon Jun 15 10:56:54 2026] [::1]:53222 Closing
+[Mon Jun 15 10:56:54 2026] [::1]:53236 Accepted
+[Mon Jun 15 10:56:54 2026] [::1]:53236 [200]: GET /auth.php?action=list_users
+[Mon Jun 15 10:56:54 2026] [::1]:53236 Closing

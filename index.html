@@ -413,6 +413,28 @@
         .status-success { background: #c6f6d5; color: #22543d; }
         .status-failed { background: #fed7d7; color: #822727; }
         .status-warning { background: #fefcbf; color: #744210; }
+
+        /* Password validation styles */
+        .password-container {
+            position: relative;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #718096;
+            user-select: none;
+        }
+        .password-rules {
+            color: #e53e3e;
+            font-size: 0.75em;
+            margin-top: 4px;
+        }
+        .input-default {
+            color: #a0aec0;
+        }
     </style>
 </head>
 <body>
@@ -589,7 +611,13 @@
             </div>
             <div class="form-group">
                 <label for="new_password">Password</label>
-                <input type="password" id="new_password" placeholder="Password" autocomplete="new-password">
+                <div class="password-container">
+                    <input type="password" id="new_password" placeholder="Password" autocomplete="new-password" class="input-default">
+                    <span id="toggleNewPassword" class="password-toggle">👁️</span>
+                </div>
+                <div class="password-rules">
+                    Minimo 8 caratteri, una maiuscola, un numero e un simbolo tra: , . ? ! % $ #
+                </div>
             </div>
             <div class="form-group">
                 <label for="new_ip">Indirizzo IP</label>
@@ -939,13 +967,73 @@
         document.getElementById('createUserForm').style.display = 'none';
     }
 
+    let newDefaultPassword = '';
+    let isNewDefaultUsed = true;
+
+    function generatePassword() {
+        const uppers = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        const numbers = '23456789';
+        const symbols = ',.?!%$#';
+        const all = 'abcdefghijkmnopqrstuvwxyz' + uppers + numbers + symbols;
+
+        let password = '';
+        password += uppers.charAt(Math.floor(Math.random() * uppers.length));
+        password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+        password += symbols.charAt(Math.floor(Math.random() * symbols.length));
+
+        for (let i = 0; i < 5; i++) {
+            password += all.charAt(Math.floor(Math.random() * all.length));
+        }
+
+        return password.split('').sort(() => 0.5 - Math.random()).join('');
+    }
+
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    function validatePassword(pass) {
+        if (pass.length < 8) return false;
+        if (!/[A-Z]/.test(pass)) return false;
+        if (!/[0-9]/.test(pass)) return false;
+        if (!/[,.?!%$#]/.test(pass)) return false;
+        return true;
+    }
+
+    const newPasswordInput = document.getElementById('new_password');
+    const toggleNewPassword = document.getElementById('toggleNewPassword');
+
+    newPasswordInput.addEventListener('keydown', function(e) {
+        if (isNewDefaultUsed) {
+            newPasswordInput.value = '';
+            newPasswordInput.classList.remove('input-default');
+            newPasswordInput.type = 'password';
+            isNewDefaultUsed = false;
+        }
+    });
+
+    toggleNewPassword.addEventListener('click', function() {
+        const type = newPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        newPasswordInput.setAttribute('type', type);
+        this.textContent = type === 'password' ? '👁️' : '🙈';
+    });
+
     function toggleCreateUserForm() {
         const form = document.getElementById('createUserForm');
         if (form.style.display === 'none') {
             form.style.display = 'block';
             document.getElementById('new_username').value = '';
             document.getElementById('new_email').value = '';
-            document.getElementById('new_password').value = '';
+
+            // Generate default password
+            newDefaultPassword = generatePassword();
+            newPasswordInput.value = newDefaultPassword;
+            newPasswordInput.type = 'text';
+            newPasswordInput.classList.add('input-default');
+            isNewDefaultUsed = true;
+            toggleNewPassword.textContent = '👁️';
+
             document.getElementById('new_is_confirmed').checked = true;
         } else {
             form.style.display = 'none';
@@ -955,11 +1043,21 @@
     async function createUser() {
         const username = document.getElementById('new_username').value;
         const email = document.getElementById('new_email').value;
-        const password = document.getElementById('new_password').value;
+        const password = newPasswordInput.value;
         const is_confirmed = document.getElementById('new_is_confirmed').checked;
 
         if (!username || !email || !password) {
             alert('Per favore compila tutti i campi obbligatori.');
+            return;
+        }
+
+        if (!validateEmail(email)) {
+            alert('Formato email non valido (es. xxxx@yyyy.zz)');
+            return;
+        }
+
+        if (!validatePassword(password)) {
+            alert('La password non rispetta i requisiti di complessità');
             return;
         }
 
