@@ -1,0 +1,19 @@
+[Mon Jun 15 10:29:08 2026] PHP 8.3.6 Development Server (http://localhost:8080) started
+[Mon Jun 15 10:29:47 2026] [::1]:53864 Accepted
+[Mon Jun 15 10:29:47 2026] [::1]:53864 [200]: GET /bypass_login.php
+[Mon Jun 15 10:29:47 2026] [::1]:53864 Closing
+[Mon Jun 15 10:29:47 2026] [::1]:53872 Accepted
+[Mon Jun 15 10:29:47 2026] [::1]:53872 [200]: GET /index.html
+[Mon Jun 15 10:29:47 2026] [::1]:53872 Closing
+[Mon Jun 15 10:29:48 2026] [::1]:53886 Accepted
+[Mon Jun 15 10:29:48 2026] [::1]:53886 [200]: GET /auth.php?action=status
+[Mon Jun 15 10:29:48 2026] [::1]:53886 Closing
+[Mon Jun 15 10:29:48 2026] [::1]:53900 Accepted
+[Mon Jun 15 10:29:48 2026] [::1]:53900 [200]: GET /data.php?hours=6
+[Mon Jun 15 10:29:48 2026] [::1]:53900 Closing
+[Mon Jun 15 10:29:48 2026] [::1]:53916 Accepted
+[Mon Jun 15 10:29:48 2026] [::1]:53916 [200]: GET /settings.php
+[Mon Jun 15 10:29:48 2026] [::1]:53916 Closing
+[Mon Jun 15 10:29:48 2026] [::1]:53932 Accepted
+[Mon Jun 15 10:29:48 2026] [::1]:53932 [200]: GET /auth.php?action=list_users
+[Mon Jun 15 10:29:48 2026] [::1]:53932 Closing
