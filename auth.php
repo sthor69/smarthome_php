@@ -14,6 +14,25 @@ function isAdmin() {
     return isset($_SESSION['username']) && $_SESSION['username'] === 'sthorass';
 }
 
+function validateComplexity($email, $password) {
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return "Formato email non valido (es. xxxx@yyyy.zz)";
+    }
+    if (strlen($password) < 8) {
+        return "La password deve essere di almeno 8 caratteri";
+    }
+    if (!preg_match('/[A-Z]/', $password)) {
+        return "La password deve contenere almeno una lettera maiuscola";
+    }
+    if (!preg_match('/[0-9]/', $password)) {
+        return "La password deve contenere almeno un numero";
+    }
+    if (!preg_match('/[,.?!%$#]/', $password)) {
+        return "La password deve contenere almeno un simbolo tra {,.?!%$#}";
+    }
+    return true;
+}
+
 function logAttempt($db, $username, $email, $status, $error = null) {
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     $stmt = $db->prepare("INSERT INTO user_creation_attempts (username, email, ip_address, status, error_message) VALUES (?, ?, ?, ?, ?)");
@@ -34,6 +53,14 @@ switch ($action) {
             logAttempt($db, $regUsername, $email, 'FAILED', 'Missing fields');
             write_log('WARNING', "Registration failed: missing fields for user '$regUsername'");
             echo json_encode(['success' => false, 'error' => 'Username, password ed email richiesti']);
+            break;
+        }
+
+        $val = validateComplexity($email, $pass);
+        if ($val !== true) {
+            logAttempt($db, $regUsername, $email, 'FAILED', $val);
+            write_log('WARNING', "Registration failed: complexity requirements not met for '$regUsername'. Error: $val");
+            echo json_encode(['success' => false, 'error' => $val]);
             break;
         }
 
@@ -228,6 +255,12 @@ switch ($action) {
 
         if (empty($username) || empty($email) || empty($password)) {
             echo json_encode(['success' => false, 'error' => 'Campi obbligatori mancanti']);
+            break;
+        }
+
+        $val = validateComplexity($email, $password);
+        if ($val !== true) {
+            echo json_encode(['success' => false, 'error' => $val]);
             break;
         }
 
